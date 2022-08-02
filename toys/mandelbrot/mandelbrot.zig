@@ -1,5 +1,6 @@
 const std = @import("std");
 const io = std.io;
+const math = std.math;
 
 // extern functions refer to the exterior JS namespace
 // when importing wasm code, the `print` func must be provided
@@ -29,5 +30,8 @@ export fn get_pixel_color(px: i32, py: i32) u8 {
         xsquare = x * x;
         ysquare = y * y;
     }
+    // smoothed valued
+    //     return n + 1 - log(log2(abs(z)))
+    // figure out import math first to get log/log2/abs
     return iterations;
 }

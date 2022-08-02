@@ -3,6 +3,20 @@ request.open('GET', 'mandelbrot.wasm');
 request.responseType = 'arraybuffer';
 request.send();
 
+
+var cnv = window.document.getElementById("canvas");
+var ctx = cnv.getContext("2d");
+
+var main = function() {
+	for (var i = 0; i < cnv.width; i++) {
+		for (var j = 0; j < cnv.height; j++) {
+			var iters = get_pixel_color(i, j);
+			ctx.fillStyle = "rgb(" + iters +", "+iters+", "+iters+")";
+			ctx.fillRect(i, j, 1, 1);
+		}
+	}
+};
+
 var wasm_loaded = false;
 
 request.onload = function() {
@@ -16,18 +30,7 @@ request.onload = function() {
 		wasm_loaded = true;
 
 		// create a running body of code
-		(function(){
-			var cnv = window.document.getElementById("canvas");
-			var ctx = cnv.getContext("2d");
-			
-			for (var i = 0; i < cnv.width; i++) {
-				for (var j = 0; j < cnv.height; j++) {
-					var iters = get_pixel_color(i, j);
-					ctx.fillStyle = "rgb(" + iters +", "+iters+", "+iters+")";
-					ctx.fillRect(i, j, 1, 1);
-				}
-			}
-		})();
+		main();
 	});
 };
 

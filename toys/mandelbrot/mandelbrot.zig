@@ -14,8 +14,8 @@ export fn get_pixel_color(px: i32, py: i32) u8 {
 
     var x0 = @intToFloat(f32, px);
     var y0 = @intToFloat(f32, py);
-    x0 = x0 / WIDTH;
-    y0 = y0 / HEIGHT;
+    x0 = ((x0 / WIDTH) * 2.51) - 1.67;
+    y0 = ((y0 / HEIGHT) * 2.24) - 1.12;
     var x: f32 = 0;
     var y: f32 = 0;
     var tmp: f32 = 0;

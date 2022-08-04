@@ -1,5 +1,16 @@
 /// life.zig
-const NUM_CELLS: u8 = 64;
+const std = @import("std");
+
+// change these three for your game grid
+const WIDTH: u32 = 32;
+const HEIGHT: u32 = 32;
+const NUM_CELLS: u32 = HEIGHT * WIDTH;
+
+// these are calculated, don't touch
+const WIDTHm1: u32 = WIDTH - 1;
+const WIDTHp1: u32 = WIDTH + 1;
+const HEIGHTm1: u32 = HEIGHT - 1;
+const HEIGHTp1: u32 = HEIGHT + 1;
 
 // Create a Cell-type value
 // force it to a one-byte value for performance
@@ -8,70 +19,124 @@ const Cell = enum(u8) {
     Alive,
 };
 
-const DATA = [_]u8{ 100, 200, 254, 0, 0, 0 };
-
 // Create a struct which has a constant world size
 const World = struct {
-    width: u8 = 8,
-    height: u8 = 8,
     cells: [NUM_CELLS]Cell = undefined,
 };
 
-export fn get_neighbors(world: *World, index: u8) u8 {
+// this is our invisible data structure for manipulation
+var WORLD = World{
+    .cells = undefined,
+};
+
+// Get neighbors in an area
+export fn get_neighbors(index: u32) u8 {
     var num_neighbors: u8 = 0;
 
-    if ((index > 9) and (world.cells[index - 9] == .Alive)) {
+    if ((index < 0) or (index > NUM_CELLS))
+        return 0;
+
+    if ((index >= HEIGHTp1) and (WORLD.cells[index - HEIGHTp1] == .Alive)) {
         num_neighbors += 1;
     }
 
-    if ((index > 8) and (world.cells[index - 8] == .Alive)) {
+    if ((index > HEIGHT) and (WORLD.cells[index - HEIGHT] == .Alive)) {
         num_neighbors += 1;
     }
 
-    if ((index > 7) and (world.cells[index - 7] == .Alive)) {
+    if ((index > HEIGHTm1) and (WORLD.cells[index - HEIGHTm1] == .Alive)) {
         num_neighbors += 1;
     }
 
-    if ((index > 0) and (world.cells[index - 1] == .Alive)) {
+    if ((index >= 1) and (WORLD.cells[index - 1] == .Alive)) {
         num_neighbors += 1;
     }
 
-    if ((index < (NUM_CELLS - 1)) and (world.cells[index + 8] == .Alive)) {
+    if ((index < (NUM_CELLS - 1)) and (WORLD.cells[index + 1] == .Alive)) {
         num_neighbors += 1;
     }
 
-    if ((index < (NUM_CELLS - 7)) and (world.cells[index + 7] == .Alive)) {
+    if ((index < (NUM_CELLS - HEIGHTm1)) and (WORLD.cells[index + HEIGHTm1] == .Alive)) {
         num_neighbors += 1;
     }
 
-    if ((index < (NUM_CELLS - 8)) and (world.cells[index + 8] == .Alive)) {
+    if ((index < (NUM_CELLS - HEIGHT)) and (WORLD.cells[index + HEIGHT] == .Alive)) {
         num_neighbors += 1;
     }
 
-    if ((index < (NUM_CELLS - 9)) and (world.cells[index + 9] == .Alive)) {
+    if ((index < (NUM_CELLS - HEIGHTp1)) and (WORLD.cells[index + HEIGHTp1] == .Alive)) {
         num_neighbors += 1;
     }
     return num_neighbors;
 }
 
-export fn advance(world: *World) void {
-    var cell_buf: [64]Cell = undefined;
+// Advance the world by strong mutation
+export fn advance() u32 {
+    var cell_buf: [NUM_CELLS]Cell = undefined;
     var num_neighbors: u8 = 0;
-    var i: u8 = 0;
+    var i: u32 = 0;
+    var num_changed: u32 = 0;
     while (i < NUM_CELLS) : (i += 1) {
-        num_neighbors = get_neighbors(world, i);
-        switch (world.cells[i]) {
+        num_neighbors = get_neighbors(i);
+        switch (WORLD.cells[i]) {
             .Dead => {
-                if (num_neighbors == 3)
+                if (num_neighbors == 3) {
                     cell_buf[i] = Cell.Alive;
+                    num_changed += 1;
+                }
             },
             .Alive => {
-                if ((num_neighbors < 2) or (num_neighbors > 3))
+                if ((num_neighbors < 2) or (num_neighbors > 3)) {
                     cell_buf[i] = Cell.Dead;
+                    num_changed += 1;
+                }
             },
         }
     }
-    world.cells = cell_buf;
+    WORLD.cells = cell_buf;
+    return num_changed;
+}
+
+export fn set_cell(index: u32) void {
+    if (index >= NUM_CELLS)
+        return;
+
+    WORLD.cells[index] = .Alive;
+}
+
+export fn get_char(index: u32) u32 {
+    if (index >= NUM_CELLS)
+        return '◻';
+
+    return switch (WORLD.cells[index]) {
+        .Dead => {
+            return '◻';
+        },
+        .Alive => {
+            return '◼';
+        },
+    };
+}
+
+test "why the hell get_neighbors(65+) breaks" {
+    var some_val = get_neighbors(65);
+    try std.testing.expect(some_val == 0);
+}
+
+test "why the hell can't we advance" {
+    var how_many = advance();
+    try std.testing.expect(how_many == 0);
+}
+
+test "why the hell can't i get a char" {
+    var some_v = get_char(0);
+    try std.testing.expect(some_v == '◻');
+
+    some_v = get_char(3);
+    try std.testing.expect(some_v == '◻');
+
+    some_v = get_char(1024);
+    try std.testing.expect(some_v == '◻');
 }
 
 // end life.zig

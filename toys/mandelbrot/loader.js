@@ -7,6 +7,9 @@ request.send();
 var cnv = window.document.getElementById("canvas");
 var ctx = cnv.getContext("2d");
 
+var wasm_loaded = false;
+get_pixel_color = (x, y) => 0;
+
 var main = function() {
 	for (var i = 0; i < cnv.width; i++) {
 		for (var j = 0; j < cnv.height; j++) {
@@ -17,7 +20,6 @@ var main = function() {
 	}
 };
 
-var wasm_loaded = false;
 
 request.onload = function() {
 	var bytes = request.response;
@@ -26,7 +28,7 @@ request.onload = function() {
 			print: (result) => { console.log(`The result is ${result}`); }
 		}
 	}).then(result => {
-		const get_pixel_color = result.instance.exports.get_pixel_color;
+		get_pixel_color = result.instance.exports.get_pixel_color;
 		wasm_loaded = true;
 
 		// create a running body of code

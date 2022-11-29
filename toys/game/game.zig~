@@ -1,0 +1,16 @@
+// game.zig - a sample game
+
+
+const Entity = enum{
+    Empty,
+    Player,
+    Wall,
+};
+
+const State = struct{
+    
+};
+
+var WORLD = State{
+    
+};

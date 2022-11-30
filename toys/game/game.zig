@@ -57,10 +57,8 @@ fn set_pos(x: u8, y: u8, v: Entity) bool {
         switch (v) {
             .Empty => { WORLD.cells[index] = .Empty; },
             .Player => {
-                var old_pos = calc_pos(WORLD.playerx, WORLD.playery);
                 WORLD.playerx = x;
                 WORLD.playery = y;
-                WORLD.cells[old_pos] = .Empty;
                 WORLD.cells[index] = .Player;
             },
             .Wall => { WORLD.cells[index] = .Wall; },
@@ -76,7 +74,10 @@ fn set_pos(x: u8, y: u8, v: Entity) bool {
 
 /// Set up the world state, create a plus sign in the middle
 export fn init() void {
-    WORLD.cells = undefined; // reset
+    var index: usize = 0;
+    while (index < W_SIZE) : (index += 1) {
+        WORLD.cells[index] = .Empty;
+    }
     WORLD.victory = false;
     _ = set_pos(4, 4, Entity.Wall);
     _ = set_pos(4, 3, Entity.Wall);

@@ -14,7 +14,7 @@ var Game = {
 
 var AppState = {
     'loaded': false,
-    'running': true,
+    'running': false,
 };
 
 

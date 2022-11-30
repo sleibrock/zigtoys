@@ -4,6 +4,8 @@ const WIDTH: u32 = 10;
 const HEIGHT: u32 = 10;
 const W_SIZE: u32 = WIDTH * HEIGHT;
 
+const Levels = @import("levels.zig");
+
 const Entity = enum(u8) {
     Empty,
     Player,

@@ -6,6 +6,7 @@ const W_SIZE: u32 = WIDTH * HEIGHT;
 
 const Levels = @import("levels.zig");
 
+
 const Entity = enum(u8) {
     Empty,
     Player,
@@ -15,6 +16,7 @@ const Entity = enum(u8) {
     Null,
 };
 
+
 const Direction = enum(u8) {
     Up = 0,
     Down = 1,
@@ -23,19 +25,26 @@ const Direction = enum(u8) {
     Null = 4,
 };
 
+
 const State = struct{
     playerx: u8,
     playery: u8,
+    level: u8,
+    remaining: u8,
     victory: bool,
     cells: [W_SIZE]Entity,
 };
 
+
 var WORLD = State{
     .playerx = 0,
     .playery = 0,
+    .level = 0,
+    .remaining = 0,
     .victory = false,
     .cells = undefined, 
 };
+
 
 export fn is_won() bool {
     return WORLD.victory;
@@ -46,12 +55,14 @@ fn calc_pos(x: u8, y: u8) usize {
     return x + (y * HEIGHT);
 }
 
+
 export fn get_pos(x: u8, y: u8) Entity {
     var index = calc_pos(x, y);
     if (index < W_SIZE)
         return WORLD.cells[index];
     return .Empty;
 }
+
 
 fn set_pos(x: u8, y: u8, v: Entity) bool {
     var index = calc_pos(x, y);
@@ -74,6 +85,31 @@ fn set_pos(x: u8, y: u8, v: Entity) bool {
 }
 
 
+fn next_level() void {
+    const level_ptr = switch(WORLD.level) {
+        0 => &Levels.Level1,
+        1 => &Levels.Level2,
+        2 => &Levels.Level3,
+        3 => &Levels.Level4,
+        4 => &Levels.Level5,
+        else => unreachable,
+    };
+    var index : usize = 0;
+    while (index < W_SIZE) : (index += 1) {
+        var new_e : Entity = switch (level_ptr[index]) {
+            0 => .Empty,
+            1 => .Player,
+            2 => .Wall,
+            3 => .Block,
+            4 => .Goal,
+            else => unreachable,
+        };
+        WORLD.cells[index] = new_e;
+    }
+    return;
+}
+
+
 /// Set up the world state, create a plus sign in the middle
 export fn init() void {
     var index: usize = 0;
@@ -81,6 +117,7 @@ export fn init() void {
         WORLD.cells[index] = .Empty;
     }
     WORLD.victory = false;
+    WORLD.remaining = 1;
     _ = set_pos(4, 4, Entity.Wall);
     _ = set_pos(4, 3, Entity.Wall);
     _ = set_pos(4, 5, Entity.Wall);
@@ -145,7 +182,13 @@ export fn update(dir: Direction) void {
                 .Goal => {
                     _ = set_pos(WORLD.playerx, WORLD.playery, .Empty);
                     _ = set_pos(goalx, goaly, .Player);
-                    WORLD.victory = true; // you win!
+                    WORLD.remaining -= 1;
+                    if (WORLD.level == 4) {
+                        WORLD.victory = true; // you win!
+                        return;
+                    }
+                    if (WORLD.remaining == 0)
+                        next_level();
                 },
                 else => {},
             }

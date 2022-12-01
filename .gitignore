@@ -2,5 +2,6 @@ zig-cache/
 zig-build/
 zig-out/
 *~
+*\~
 \#*\#
 *.o

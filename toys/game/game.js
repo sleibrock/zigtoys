@@ -18,6 +18,11 @@ var AppState = {
 };
 
 
+var rgb = function(r, g, b) {
+    return "rgb(" + r + "," + g + "," + b +")";
+}
+
+
 var main = function() {
     console.log("Main function started");
 
@@ -28,17 +33,8 @@ var main = function() {
 	for(var x = 0; x < 10; x++) {
 	    for(var y = 0; y < 10; y++) {
 		var cell = Game.get_pos(x, y);
-		if (cell == 1)
-		    ctx.fillStyle = "red";
-		else if (cell == 2)
-		    ctx.fillStyle = "grey";
-		else if (cell == 3)
-		    ctx.fillStyle = "blue";
-		else if (cell == 4)
-		    ctx.fillStyle = "green";
-		else
-		    ctx.fillStyle = "white";
-		ctx.fillRect(x*10, y*10, (x*10)+10, (y*10)+10);
+		ctx.fillStyle = rgb(Game.red(cell), Game.green(cell), Game.blue(cell));
+		ctx.fillRect(x*25, y*25, (x*25)+25, (y*25)+25);
 	    }
 	}
 

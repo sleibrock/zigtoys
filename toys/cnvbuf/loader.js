@@ -1,24 +1,20 @@
 // loader.js
 
 ZIG = {};
-MEM = new WebAssembly.Memory({
-    initial: 10,
-    maximum: 20,
-});
-memvals = {};
 loaded = false;
 
 cnv = window.document.getElementById("output_cnv");
 ctx = cnv.getContext('2d');
+memvals = {};
 img = {};
 
 var main = function() {
+    var startaddr = ZIG.startAddr() + 20;
+    var bufsize = ZIG.getSize();
+    var memvals = new Uint8ClampedArray(ZIG.memory.buffer, startaddr, bufsize);
+    var img = new ImageData(memvals, ZIG.getWidth(), ZIG.getHeight());
     var loop = function() {
 	ZIG.update();
-	startaddr = ZIG.startAddr();
-	endaddr = startaddr + ZIG.getSize();
-	memvals = new Uint8ClampedArray(ZIG.memory.buffer.slice(startaddr, endaddr));
-	img = new ImageData(memvals, ZIG.getWidth(), ZIG.getHeight());
 	ctx.putImageData(img, 0, 0);
 	window.requestAnimationFrame(loop);
     };
@@ -29,7 +25,6 @@ window.document.body.onload = function() {
     console.log("Loading WASM");
 
     WebAssembly.instantiateStreaming(fetch("cnvbuf.wasm"), {
-	js: { mem: MEM },
     }).then(res => {
 	console.log("WASM loaded");
 	ZIG = res.instance.exports;
@@ -39,3 +34,5 @@ window.document.body.onload = function() {
 	main();
     });
 };
+
+// end loader

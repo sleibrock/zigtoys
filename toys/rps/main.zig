@@ -1,14 +1,11 @@
 // main.zig
 
 const std = @import("std");
-var buffer: [640*480*4*2]u8 = undefined;
-const heap = std.heap;
-var fba = heap.FixedBufferAllocator.init(&buffer);
-const alloc = fba.allocator();
-
+//var buffer: [640 * 480 * 4 * 2]u8 = undefined;
+const alloc = std.heap.page_allocator;
 
 const ppm = @import("src/ppm.zig");
-
+const rng = @import("src/rng.zig");
 
 const EntityT = enum(u8) {
     Rock,
@@ -24,7 +21,7 @@ const Entity = struct {
     t: EntityT,
 
     fn init(x: f32, y: f32, t: EntityT) Entity {
-        return Entity {
+        return Entity{
             .px = x,
             .py = y,
             .vx = 0,
@@ -34,30 +31,21 @@ const Entity = struct {
     }
 };
 
-
-const RNG = struct {
-    seed: u32,
-    modulo: u32,
-    current: u32,
-
-    fn next(self: *RNG) u32 {
-        self.current = (self.seed + self.current) % self.modulo;
-        return self.current;
-    }
-};
+// init an RNG
+const RNG = rng.NewType(u32);
 
 const State = struct {
     width: u32,
     height: u32,
     rng: RNG,
     entities: [100]Entity,
-    buffer: std.ArrayList(u8), 
+    buffer: std.ArrayList(u8),
 };
 
-var World = State {
+var World = State{
     .width = 0,
     .height = 0,
-    .rng = RNG { .seed = 178123, .modulo = 778, .current = 0 },
+    .rng = undefined,
     .entities = undefined,
     .buffer = undefined,
 };
@@ -66,19 +54,19 @@ const scissors_b = @embedFile("new_scissor.ppm");
 const rock_b = @embedFile("new_rock.ppm");
 const paper_b = @embedFile("new_paper.ppm");
 
-
-export fn init(wx: u32, wy: u32) u32 {
-
+export fn init(wx: u32, wy: u32, seed: u32) u32 {
+    World.rng = RNG.init(0x12345 | seed);
     World.width = wx;
     World.height = wy;
-    World.buffer = std.ArrayList(u8).initCapacity(alloc, wx*wy*4)
-        catch |err| {
-            switch (err) {
-                else => { return 1; }
-            }
+    World.buffer = std.ArrayList(u8).initCapacity(alloc, wx * wy * 4) catch |err| {
+        switch (err) {
+            else => {
+                return 1;
+            },
+        }
     };
     var index: usize = 0;
-    const maxcap: usize = wx*wy*4;
+    const maxcap: usize = wx * wy * 4;
     while (index < maxcap) : (index += 1) {
         World.buffer.items[index] = 255;
     }
@@ -86,16 +74,18 @@ export fn init(wx: u32, wy: u32) u32 {
     // fill the entities array with scissors!
     index = 0;
     while (index < 100) : (index += 1) {
-        var rx = World.rng.next() % 640;
-        var ry = World.rng.next() % 480;
-        World.entities[index] = Entity.init(
-            @intToFloat(f32, rx),
-            @intToFloat(f32, ry),
-            .Scissors
-        );
+        var rx = @intToFloat(f32, World.rng.next() % 640);
+        var ry = @intToFloat(f32, World.rng.next() % 480);
+        var t = EntityT.Scissors;
+        var rr = World.rng.random(); // float32
+        if (rr > 0.34)
+            t = .Rock;
+        if (rr > 0.67)
+            t = .Paper;
+        World.entities[index] = Entity.init(rx, ry, t);
     }
-    
-    return wx*wy*4;
+
+    return wx * wy * 4;
 }
 
 export fn startAddr() *[]u8 {
@@ -114,32 +104,25 @@ export fn getHeight() u32 {
     return World.height;
 }
 
-
 export fn update() void {
-
+    clear();
     var index: usize = 0;
     while (index < 100) : (index += 1) {
-        switch (World.entities[index].t) {
-            .Scissors => {
-                drawPic(
-                    @floatToInt(u32, World.entities[index].px),
-                    @floatToInt(u32, World.entities[index].py),
-                    scissors_b,
-                );
-            },
-            else => {},
-        }
+        drawPic(@floatToInt(u32, World.entities[index].px), @floatToInt(u32, World.entities[index].py), switch (World.entities[index].t) {
+            .Scissors => scissors_b,
+            .Rock => rock_b,
+            .Paper => paper_b,
+        });
     }
-    drawPic(300, 300, scissors_b);
 }
-
 
 fn calcPos(x: u32, y: u32) usize {
     return ((y * World.width) + x) * 4;
 }
 
-
 export fn setRGBA(x: u32, y: u32, r: u8, g: u8, b: u8, a: u8) void {
+    if (x > World.width) return;
+    if (y > World.height) return;
     const index = calcPos(x, y);
     World.buffer.items[index] = r;
     World.buffer.items[index + 1] = g;
@@ -147,18 +130,16 @@ export fn setRGBA(x: u32, y: u32, r: u8, g: u8, b: u8, a: u8) void {
     World.buffer.items[index + 3] = a;
 }
 
-
 export fn clear() void {
     var x: u32 = 0;
     var y: u32 = 0;
     while (y < World.height) : (y += 1) {
         x = 0;
         while (x < World.width) : (x += 1) {
-            setRGBA(x, y, 70, 70, 70, 0);
+            setRGBA(x, y, 70, 70, 70, 255);
         }
     }
 }
-
 
 export fn straightLine(x1: u32, y1: u32, x2: u32) void {
     var x: u32 = x1;
@@ -184,17 +165,16 @@ fn drawPic(x: u32, y: u32, buf: *const [768:0]u8) void {
             b = buf[index + 2];
 
             // don't paint if image has white
-            if ((r!=255) and (g!=255) and (b!=255))
-                setRGBA(x+px, y+py, r, g, b, 0);
+            if ((r != 255) and (g != 255) and (b != 255))
+                setRGBA(x + px, y + py, r, g, b, 255);
 
             index += 3; // bump the pointer
         }
     }
-
 }
 
 export fn atAddr(x: u32) u8 {
     return World.buffer.items[x];
 }
 
-// 
+//

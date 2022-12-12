@@ -1,10 +1,8 @@
 // main.zig
 
 const std = @import("std");
-//var buffer: [640 * 480 * 4 * 2]u8 = undefined;
 const alloc = std.heap.page_allocator;
 
-const ppm = @import("src/ppm.zig");
 const rng = @import("src/rng.zig");
 
 const EntityT = enum(u8) {
@@ -19,7 +17,9 @@ const Entity = struct {
     vx: f32,
     vy: f32,
     t: EntityT,
+    next: EntityT,
 
+    /// initialize an entity
     fn init(x: f32, y: f32, t: EntityT) Entity {
         return Entity{
             .px = x,
@@ -27,7 +27,53 @@ const Entity = struct {
             .vx = 0,
             .vy = 0,
             .t = t,
+            .next = t,
         };
+    }
+
+    /// move the entity around
+    fn move(self: *Entity) void {
+        self.px += self.vx;
+        self.py += self.vy;
+    }
+
+    /// determine if a given entity is an opponent or not
+    fn foundPrey(self: *Entity, other: *Entity) bool {
+        switch (self.t) {
+            .Rock => {
+                return other.t == .Paper;
+            },
+            .Paper => {
+                return other.t == .Rock;
+            },
+            else => {
+                return other.t == .Scissors;
+            },
+        }
+    }
+
+    /// Calculate cartesian distance as a 1/sqrt(x) value
+    /// hopefully optimizing away the fast inverse square root issue
+    /// 1 / sqrt(dx^2 + dy^)
+    fn distanceTo(self: *Entity, other: *Entity) f32 {
+        const dx = self.px - other.px;
+        const dy = self.py - other.py;
+        return @divExact(1.0, @sqrt((dx * dx) + (dy - dy)));
+    }
+
+    /// Point the current entity to the given (enemy?) entity
+    fn pointTowards(self: *Entity, other: *Entity, mag: f32) void {
+        // calculate a new trajectory vector (v2 - v1)
+        var dx = other.px - self.px;
+        var dy = other.py - self.py;
+        self.vx = dx * mag;
+        self.vy = dy * mag;
+    }
+
+    fn overlap(self: *Entity, other: *Entity) bool {
+        _ = self;
+        _ = other;
+        return false;
     }
 };
 
@@ -105,10 +151,46 @@ export fn getHeight() u32 {
 }
 
 export fn update() void {
-    clear();
+    clear(); // clear screen
+
     var index: usize = 0;
+    var subindex: usize = 0;
+    var cur_e: ?*Entity = null;
+    var oth_e: ?*Entity = null;
+    var tmpd: f32 = 0.0;
+    var shortest: f32 = 9999.0;
+    var shortest_index: usize = 0;
+
     while (index < 100) : (index += 1) {
-        drawPic(@floatToInt(u32, World.entities[index].px), @floatToInt(u32, World.entities[index].py), switch (World.entities[index].t) {
+        // update the velocity to find enemies
+        cur_e = &World.entities[index];
+        cur_e.?.move(); // move the unit
+
+        subindex = 0;
+        while (subindex < 100) : (subindex += 1) {
+            if (index != subindex) {
+                oth_e = &World.entities[subindex];
+
+                // determine if oth_e is our enemy
+                if (cur_e.?.foundPrey(oth_e.?)) {
+                    // do a distance check to see if it's shortest
+                    tmpd = cur_e.?.distanceTo(oth_e.?);
+                    if (tmpd < shortest) {
+                        shortest = tmpd;
+                        shortest_index = subindex;
+                    }
+
+                    // do we overlap with this enemy yet?
+                    if (cur_e.?.overlap(oth_e.?)) {
+                        // do some logic here
+                    }
+                }
+            }
+            // find a collison?
+            // if (World.entities[index].collides)
+        }
+
+        drawPic(cur_e.?.px, cur_e.?.py, switch (cur_e.?.t) {
             .Scissors => scissors_b,
             .Rock => rock_b,
             .Paper => paper_b,
@@ -148,7 +230,9 @@ export fn straightLine(x1: u32, y1: u32, x2: u32) void {
     }
 }
 
-fn drawPic(x: u32, y: u32, buf: *const [768:0]u8) void {
+fn drawPic(x: f32, y: f32, buf: *const [768:0]u8) void {
+    var ox: u32 = @floatToInt(u32, x);
+    var oy: u32 = @floatToInt(u32, y);
     var px: usize = 0;
     var py: usize = 0;
     var r: u8 = 0;
@@ -166,7 +250,7 @@ fn drawPic(x: u32, y: u32, buf: *const [768:0]u8) void {
 
             // don't paint if image has white
             if ((r != 255) and (g != 255) and (b != 255))
-                setRGBA(x + px, y + py, r, g, b, 255);
+                setRGBA(ox + px, oy + py, r, g, b, 255);
 
             index += 3; // bump the pointer
         }

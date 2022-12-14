@@ -4,12 +4,16 @@
 const world = @import("src/world.zig");
 const rng = @import("src/rng.zig");
 
+
+// max 1000x1000 buffer with 24-bit channel
+const MBUFSIZE = 640*480*4;
+
 const EntityT = enum(u8) {};
 const Entity = struct {};
 
 // init the basic comptime types
 const RNG = rng.NewType(u32);
-const WorldT = world.createWorldT(Entity, 1000 * 1000 * 4);
+const WorldT = world.createWorldT(Entity, MBUFSIZE);
 
 var GameWorld = WorldT.init();
 
@@ -20,7 +24,7 @@ export fn init(wx: u32, wy: u32, seed: u32) u32 {
     return 0;
 }
 
-export fn startAddr() *[1000 * 1000 * 4]u8 {
+export fn startAddr() *[MBUFSIZE]u8 {
     return &GameWorld.vbuf;
 }
 

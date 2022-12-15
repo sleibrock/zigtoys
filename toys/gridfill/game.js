@@ -11,6 +11,8 @@ img = {};
 var main = function() {
     var startaddr = ZIG.startAddr();
     var bufsize = ZIG.getSize();
+    console.log("Start address: " + startaddr);
+    console.log("Buffer size: " + bufsize);
     var memvals = new Uint8ClampedArray(
 	ZIG.memory.buffer, startaddr, bufsize
     );
@@ -36,8 +38,10 @@ window.document.body.onload = function() {
 	date = new Date();
 	var res = ZIG.init(640, 480, date.getMilliseconds());
 	console.log("Memory allocated: " + res);
-	if (res == 0)
+	if (res == 0) {
 	    console.log("Failed to allocate memory");
+	    return;
+	}
 	loaded = true;
 
 	main();

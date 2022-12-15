@@ -5,6 +5,9 @@ const alloc = std.heap.page_allocator;
 
 const rng = @import("src/rng.zig");
 
+// rename the array list
+const ByteList = std.ArrayList(u8);
+
 const EntityT = enum(u8) {
     Rock,
     Paper,
@@ -85,7 +88,7 @@ const State = struct {
     height: u32,
     rng: RNG,
     entities: [100]Entity,
-    buffer: std.ArrayList(u8),
+    buffer: ByteList,
 };
 
 var World = State{
@@ -104,9 +107,9 @@ export fn init(wx: u32, wy: u32, seed: u32) u32 {
     World.rng = RNG.init(0x12345 | seed);
     World.width = wx;
     World.height = wy;
-    World.buffer = std.ArrayList(u8).initCapacity(alloc, wx * wy * 4) catch |err| {
+    World.buffer = ByteList.initCapacity(alloc, wx * wy * 4) catch |err| {
         switch (err) {
-            else => {
+           else => {
                 return 1;
             },
         }
@@ -134,8 +137,8 @@ export fn init(wx: u32, wy: u32, seed: u32) u32 {
     return wx * wy * 4;
 }
 
-export fn startAddr() *[]u8 {
-    return &World.buffer.items;
+export fn startAddr() *u8 {
+    return &World.buffer.items[0];
 }
 
 export fn getSize() u32 {

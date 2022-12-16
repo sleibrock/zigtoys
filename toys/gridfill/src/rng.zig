@@ -7,17 +7,21 @@ pub fn NewType(comptime T: type) type {
         index: u8,
 
         pub fn init(v: T) Self {
-            var mut: T = v;
             var ret = Self{
                 .state = undefined,
                 .index = 0,
             };
+            ret.startSeed(v);
+            return ret;
+        }
+
+        pub fn startSeed(this: *Self, v: T) void {
+            var mut: T = v;
             var index: usize = 0;
             while (index < 16) : (index += 1) {
-                ret.state[index] = mut;
+                this.state[index] = mut;
                 mut ^= 0xDEADBEEF;
             }
-            return ret;
         }
 
         pub fn next(self: *Self) T {

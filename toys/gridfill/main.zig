@@ -3,63 +3,69 @@
 const std = @import("std");
 const alloc = std.heap.page_allocator;
 
-const world = @import("src/world.zig");
+const render = @import("src/render.zig");
 const game = @import("src/game.zig");
 
 
-// max 1000x1000 buffer with 24-bit channel
-const MBUFSIZE = 640*480*4;
-
-const EntityT = enum(u8) {};
-const Entity = struct {};
-
 // init the basic comptime types
-const WorldT = world.createWorldT();
-const GameT = game.createGameT(WorldT); 
+const RenderT = render.createRenderT(.{
+    .use_alpha = false,
+});
+const GameT = game.createGameT(RenderT); 
 
-var World = WorldT.init(alloc);
-var Game = GameT.init(&World, alloc);
+// initialize actual structs
+var Render = RenderT.init(alloc);
+var Game = GameT.init(&Render, alloc);
 
 
+// public facing init function to set basic bootstrap values
 export fn init(wx: u32, wy: u32, seed: u32) u32 {
-    var bytes_allocd = Game.world.setResolution(wx, wy);
+    var bytes_allocd = Game.render.setResolution(wx, wy);
     if (bytes_allocd == 0) {
         return 0; // error resizing game world
     }
-    Game.world.fillBuffer(255);
+    Game.render.fillBuffer(255);
     _ = seed;
     return bytes_allocd;
 }
 
+// export the address to JS land
 export fn startAddr() *u8 {
-    return &World.vbuf.items[0];
+    return &Game.render.vbuf.items[0];
 }
 
+// export the memory buffer to JS land
 export fn getSize() u32 {
-    return World.width * World.height * 4;
+    return Game.render.width * Game.render.height * 4;
 }
 
+// export game world size to JS land
 export fn getWidth() u32 {
-    return World.width;
+    return Game.render.width;
 }
 
+// export game world size to JS land
 export fn getHeight() u32 {
-    return World.height;
+    return Game.render.height;
 }
 
+// test function
 export fn atAddr(x: u32) u8 {
-    return World.vbuf.items[x];
+    return Game.render.vbuf.items[x];
 }
 
+
+// update the function each allowable frame in client
+// Some games this may be no-op as it awaits input
+// from other callbacks like onclick/onkeydown etc
 export fn update() void {
 }
 
+// handle mouse input and update the game world
 export fn handle_input(x: u32, y: u32) void {
-    // handle mouse input and update the game world
     _ = x;
     _ = y;
-
 }
 
 
-//
+// end main.zig

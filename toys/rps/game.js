@@ -34,7 +34,7 @@ window.document.body.onload = function() {
 	console.log("WASM loaded");
 	ZIG = res.instance.exports;
 	date = new Date();
-	var res = ZIG.init(640, 480, date.getMilliseconds());
+	var res = ZIG.init(480, 480, date.getMilliseconds());
 	console.log("Memory allocated: " + res);
 	if (res == 0)
 	    console.log("Failed to allocate memory");

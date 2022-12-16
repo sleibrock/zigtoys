@@ -44,6 +44,15 @@ window.document.body.onload = function() {
 	}
 	loaded = true;
 
+	// bind an on-click event for the canvas
+	cnv.addEventListener('click', (evt) => {
+	    var rect = cnv.getBoundingClientRect();
+	    console.log(evt);
+	    var x = evt.clientX - rect.left;
+	    var y = evt.clientY - rect.top;
+	    ZIG.handle_input(x, y);
+	})
+
 	main();
     });
 };

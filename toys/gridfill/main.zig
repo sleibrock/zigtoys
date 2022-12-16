@@ -24,8 +24,19 @@ export fn init(wx: u32, wy: u32, seed: u32) u32 {
     if (bytes_allocd == 0) {
         return 0; // error resizing game world
     }
-    Game.render.fillBuffer(255);
+    Game.render.fillBuffer(255); // flush alpha channel
+
+    var resize_res = Game.size1();
+    if (resize_res == 0)
+        return 0;
     _ = seed;
+
+    // allocate the grid
+    Game.randomizeGrid();
+
+    // draw the scene once fully
+    Game.renderGrid();
+    
     return bytes_allocd;
 }
 
@@ -63,8 +74,8 @@ export fn update() void {
 
 // handle mouse input and update the game world
 export fn handle_input(x: u32, y: u32) void {
-    _ = x;
-    _ = y;
+    Game.render.setColor(255, 255, 0, 255);
+    Game.render.fillRect(x, y, 20, 20);
 }
 
 

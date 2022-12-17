@@ -47,8 +47,7 @@ pub fn createRenderT(comptime Settings: RenderSettings) type {
         /// Use this to determine if pixel (x,y) is out-of-bounds
         /// More valid to use this than calcPos() as calcPos() returns min-zero
         pub fn oob(this: *Self, x: u32, y: u32) bool {
-            return ((x < 0) or (y < 0)
-                        or (x >= this.width) or (y >= this.height));
+            return ((x < 0) or (y < 0) or (x >= this.width) or (y >= this.height));
         }
 
         /// Attempt to set a new resolution of the renderer
@@ -59,7 +58,9 @@ pub fn createRenderT(comptime Settings: RenderSettings) type {
                 // resize operation
                 this.vbuf.resize(new_size) catch |err| {
                     switch (err) {
-                        else => { return 0; }
+                        else => {
+                            return 0;
+                        },
                     }
                 };
             } else {
@@ -75,11 +76,11 @@ pub fn createRenderT(comptime Settings: RenderSettings) type {
         /// Calc the position of a given (x,y) in the buffer
         /// Not a valid way of determining oob
         pub fn calcPos(this: *Self, x: u32, y: u32) u32 {
-            var res: u32 = (y * this.height) + x;
+            var res: u32 = ((y * this.width) + x) * 4;
             if (res > this.size) {
                 return 0;
             }
-            return ((y * this.height) + x);
+            return res;
         }
 
         /// fill all elements of the buffer with a given u8
@@ -91,7 +92,7 @@ pub fn createRenderT(comptime Settings: RenderSettings) type {
             return;
         }
 
-        /// 
+        ///
         pub fn setPixel(this: *Self, x: u32, y: u32) void {
             if (this.oob(x, y))
                 return;
@@ -106,21 +107,20 @@ pub fn createRenderT(comptime Settings: RenderSettings) type {
             }
             return;
         }
-        
+
         pub fn fillRect(this: *Self, x: u32, y: u32, w: u32, h: u32) void {
             var px: u32 = x;
             var py: u32 = y;
-            var tx: u32 = px + w;
-            var ty: u32 = py + h;
+            var tx: u32 = x + w;
+            var ty: u32 = y + h;
 
             while (py < ty) : (py += 1) {
                 px = x;
                 while (px < tx) : (px += 1) {
-                    if (!this.oob(px, py)) {
-                        this.setPixel(px, py);
-                    }
+                    this.setPixel(px, py);
                 }
             }
+            return;
         }
     };
 }

@@ -48,9 +48,11 @@ window.document.body.onload = function() {
 	cnv.addEventListener('click', (evt) => {
 	    var rect = cnv.getBoundingClientRect();
 	    console.log(evt);
-	    var x = evt.clientX - rect.left;
-	    var y = evt.clientY - rect.top;
-	    ZIG.handle_input(x, y);
+	    var x = Math.trunc(evt.clientX - rect.left);
+	    var y = Math.trunc(evt.clientY - rect.top);
+	    console.log({x: x, y: y});
+	    var res = ZIG.handle_input(x, y);
+	    console.log("handle_input: " + res);
 	})
 
 	main();

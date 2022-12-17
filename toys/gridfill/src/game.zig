@@ -8,7 +8,12 @@ const types = @import("types.zig");
 const render = @import("render.zig");
 
 const RNG = rng.NewType(u32);
+const MAXSTACK: u8 = 200;
 
+const Cord = struct {
+    x: u32,
+    y: u32,
+};
 
 pub fn createGameT(comptime R: type) type {
     return struct {
@@ -21,6 +26,8 @@ pub fn createGameT(comptime R: type) type {
         gridy: u32,
         rng: rng.NewType(u32),
         grid: types.ColorList,
+        stack: [MAXSTACK]Cord,
+        stacksize: u8,
 
         pub fn init(ren: *R, alloc: mem.Allocator) Self {
             return Self{
@@ -31,6 +38,8 @@ pub fn createGameT(comptime R: type) type {
                 .gridy = 0,
                 .rng = RNG.init(0),
                 .grid = types.ColorList.init(alloc),
+                .stack = undefined,
+                .stacksize = 0,
             };
         }
 
@@ -38,7 +47,9 @@ pub fn createGameT(comptime R: type) type {
             if (size > this.size) {
                 this.grid.resize(size) catch |err| {
                     switch (err) {
-                        else => { return 0; },
+                        else => {
+                            return 0;
+                        },
                     }
                 };
             } else {
@@ -46,6 +57,15 @@ pub fn createGameT(comptime R: type) type {
             }
             this.size = size;
             return size;
+        }
+
+        pub fn getColor(this: *Self, x: u32, y: u32) types.ColorT {
+            return this.grid.items[(y * this.gridx) + x];
+        }
+
+        pub fn setColor(this: *Self, x: u32, y: u32, c: types.ColorT) void {
+            this.grid.items[(y * this.gridx) + x] = c;
+            return;
         }
 
         pub fn size1(this: *Self) u32 {
@@ -94,25 +114,42 @@ pub fn createGameT(comptime R: type) type {
                     randcol = .Color7;
                 } else if (randnum < 0.7) {
                     randcol = .Color8;
-                } else if (randnum < 0.9) {
-                    randcol = .Wall;
+                } else {
+                    randcol = .Color1;
                 }
-                this.grid.items[index] = randcol; 
+                this.grid.items[index] = randcol;
             }
         }
 
-
         pub fn switchColor(this: *Self, color: types.ColorT) void {
             switch (color) {
-                .Color1 => { this.render.setColor(255, 0, 0, 255); },
-                .Color2 => { this.render.setColor(0, 255, 0, 255); },
-                .Color3 => { this.render.setColor(0, 0, 255, 255); },
-                .Color4 => { this.render.setColor(255, 255, 0, 255); },
-                .Color5 => { this.render.setColor(255, 0, 255, 255); },
-                .Color6 => { this.render.setColor(0, 255, 255, 255); },
-                .Color7 => { this.render.setColor(127, 127, 0, 255); },
-                .Color8 => { this.render.setColor(0, 127, 127, 255); },
-                .Wall => { this.render.setColor(30, 30, 30, 255); },
+                .Color1 => {
+                    this.render.setColor(255, 0, 0, 255);
+                },
+                .Color2 => {
+                    this.render.setColor(0, 255, 0, 255);
+                },
+                .Color3 => {
+                    this.render.setColor(0, 0, 255, 255);
+                },
+                .Color4 => {
+                    this.render.setColor(255, 255, 0, 255);
+                },
+                .Color5 => {
+                    this.render.setColor(255, 0, 255, 255);
+                },
+                .Color6 => {
+                    this.render.setColor(0, 255, 255, 255);
+                },
+                .Color7 => {
+                    this.render.setColor(127, 127, 0, 255);
+                },
+                .Color8 => {
+                    this.render.setColor(0, 127, 127, 255);
+                },
+                .Wall => {
+                    this.render.setColor(30, 30, 30, 255);
+                },
             }
         }
 
@@ -123,7 +160,6 @@ pub fn createGameT(comptime R: type) type {
             this.render.fillRect(x, y, this.boxsize, this.boxsize);
             return;
         }
-
 
         pub fn renderGrid(this: *Self) void {
             var index: usize = 0;
@@ -145,9 +181,112 @@ pub fn createGameT(comptime R: type) type {
             return;
         }
 
-        pub fn handle_click(x: u32, y: u32) void {
-            _ = x;
-            _ = y;
+        /// Help locate a point in a range of values by stepping through
+        /// and checking if a point is "underneath" a value, counting
+        /// the times we add up to keep bumping our range.
+        /// (This avoids hard division)
+        pub fn locate(this: *Self, v: u32, max: u32) u32 {
+            var adder: u32 = this.boxsize; // keeps track of pixels
+            var index: u32 = 0; // keeps track of how many times we add
+            while (index < max) : (index += 1) {
+                if (adder > v) {
+                    return index;
+                }
+                adder += this.boxsize;
+            }
+            return index;
+        }
+
+        pub fn handle_click(this: *Self, x: u32, y: u32) u32 {
+            var tx = this.locate(x, this.gridx);
+            var ty = this.locate(y, this.gridy);
+            var col = this.getColor(tx, ty);
+
+            if (col == this.getColor(0, 0)) {
+                return 0; // avoid refilling same color
+            }
+
+            var num_painted = this.floodColor(col);
+
+            this.renderGrid();
+
+            return num_painted;
+        }
+
+        /// The floodpainting algorithm is a tricky one, as normal
+        /// graph traversal algorithms rely on dynamic backtracking
+        /// and state referencing to identify cells already covered.
+        ///
+        /// The goal is to provide a non-allocating solution and
+        /// create a very minimal approach to filling a grid with
+        /// colors.
+        pub fn floodColor(this: *Self, color: types.ColorT) u32 {
+            var px: u32 = 0;
+            var py: u32 = 0;
+            var cells_painted: u32 = 0;
+
+            // clear the stack out
+            this.stacksize = 0;
+            var index: usize = 0;
+            while (index < MAXSTACK) : (index += 1) {
+                this.stack[index] = Cord{ .x = 0, .y = 0 };
+            }
+            index = 0;
+
+            // get our current color (the one to replace)
+            const old_color: types.ColorT = this.getColor(px, py);
+
+            // set the stacksize to 1
+            // 0th cell is set to (0,0) a few lines ago
+            this.stacksize += 1;
+
+            // allot a var to be a cord type
+            var currC = this.stack[0];
+
+            // continue to paint until we effectively hit our old destination
+            while (this.stacksize > 0) {
+                currC = this.stack[this.stacksize];
+                px = currC.x;
+                py = currC.y;
+
+                // set the current cell's color
+                this.setColor(px, py, color);
+                this.stacksize -= 1;
+
+                // check for friends in the other cardinal directions
+                if ((px > 0) and (this.stacksize < MAXSTACK)) {
+                    if (this.getColor(px - 1, py) == old_color) {
+                        this.stacksize += 1;
+                        this.stack[this.stacksize].x = px - 1;
+                        this.stack[this.stacksize].y = py;
+                    }
+                }
+                if ((py > 0) and (this.stacksize < MAXSTACK)) {
+                    if (this.getColor(px, py - 1) == old_color) {
+                        this.stacksize += 1;
+                        this.stack[this.stacksize].x = px;
+                        this.stack[this.stacksize].y = py - 1;
+                    }
+                }
+                if ((px < this.gridx) and (this.stacksize < MAXSTACK)) {
+                    if (this.getColor(px + 1, py) == old_color) {
+                        this.stacksize += 1;
+                        this.stack[this.stacksize].x = px + 1;
+                        this.stack[this.stacksize].y = py;
+                    }
+                }
+                if ((py < this.gridy) and (this.stacksize < MAXSTACK)) {
+                    if (this.getColor(px, py + 1) == old_color) {
+                        this.stacksize += 1;
+                        this.stack[this.stacksize].x = px;
+                        this.stack[this.stacksize].y = py + 1;
+                    }
+                }
+            }
+
+            return cells_painted;
         }
     };
 }
+
+// end game.zig

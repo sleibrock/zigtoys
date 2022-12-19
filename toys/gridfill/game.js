@@ -48,12 +48,12 @@ window.document.body.onload = function() {
 	cnv.addEventListener('click', (evt) => {
 	    var rect = cnv.getBoundingClientRect();
 	    console.log(evt);
-	    var w_ratio = 1.0 + (rect.width / 480);
-	    var h_ratio = 1.0 + (rect.height / 480);
+	    var w_ratio = (rect.width / 480);
+	    var h_ratio = (rect.height / 480);
 	    var x = evt.clientX - rect.left;
 	    var y = evt.clientY - rect.top;
-	    var sx = Math.trunc(x * w_ratio);
-	    var sy = Math.trunc(y * h_ratio);
+	    var sx = Math.trunc(x / w_ratio);
+	    var sy = Math.trunc(y / h_ratio);
 	    console.log(rect);
 	    console.log({sx: sx, sy: sy});
 	    var res = ZIG.handle_input(sx, sy);

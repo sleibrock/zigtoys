@@ -198,6 +198,9 @@ pub fn createGameT(comptime R: type) type {
         }
 
         pub fn handle_click(this: *Self, x: u32, y: u32) u32 {
+            if (this.render.oob(x, y))
+                return 0;
+            
             var tx = this.locate(x, this.gridx);
             var ty = this.locate(y, this.gridy);
             var col = this.getColor(tx, ty);

@@ -16,12 +16,20 @@
 	  margin: 0 auto;
 	  text-align: center;
       }
+      .showhide {
+	  display: block;
+      }
       @media screen and (max-width: 600px) {
 	  body {
 	      width: 100% !important;
+	      margin: 0px !important;
 	  }
 	  canvas {
 	      width: 100% !important;
+	  }
+
+	  .showhide {
+	      display: none !important;
 	  }
       }
     </style>
@@ -33,10 +41,12 @@
 	Browser does not support HTML5 canvas element
       </canvas>
       <br/>
-      <h5>Controls</h5>
-      <p>Click on colors to change the top-left corner.</p>
-      <p>Fill the entire board with a single color to win.</p>
-      <p>Refresh the page to restart with a new game.</p>
+      <h5 id="toggle_controls">Controls [toggle]</h5>
+      <div class="showhide">
+	<p>Click on colors to change the top-left corner.</p>
+	<p>Fill the entire board with a single color to win.</p>
+	<p>Refresh the page to restart with a new game.</p>
+      </div>
     </div>
   </body>
   <script src="game.js"></script>

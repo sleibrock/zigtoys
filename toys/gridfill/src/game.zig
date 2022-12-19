@@ -8,7 +8,7 @@ const types = @import("types.zig");
 const render = @import("render.zig");
 
 const RNG = rng.NewType(u32);
-const MAXSTACK: u8 = 200;
+const MAXSTACK: u8 = 255;
 
 const Cord = struct {
     x: u32,

@@ -7,9 +7,17 @@
 	  background-color: black;
 	  color: white;
 	  width: 95%;
+	  font-family: arial;
       }
       #cnvdiv {
-	  width: 300px;
+	  width: 100%;
+	  margin: 0 auto;
+	  text-align: center;
+      }
+      @media screen and (max-width: 600px) {
+	  canvas {
+	      width: 100%;
+	  }
       }
     </style>
   </head>
@@ -21,6 +29,9 @@
       </canvas>
       <br/>
       <h5>Controls</h5>
+      <p>Click on colors to change the top-left corner.</p>
+      <p>Fill the entire board with a single color to win.</p>
+      <p>Refresh the page to restart with a new game.</p>
     </div>
   </body>
   <script src="game.js"></script>

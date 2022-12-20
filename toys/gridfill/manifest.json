@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "name": "Gridfill",
+  "short_name": "Gridfill",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#000",
+  "description": "A game where you fill a grid with colors.",
+  "icons": []
+}

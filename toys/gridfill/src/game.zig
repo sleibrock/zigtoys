@@ -205,11 +205,10 @@ pub fn createGameT(comptime R: type) type {
             var ty = this.locate(y, this.gridy);
             var col = this.getColor(tx, ty);
 
-            if (col == this.getColor(0, 0)) {
+            if (col == this.getColor(0, 0))
                 return 0; // avoid refilling same color
-            }
 
-            var num_painted = this.floodColor(col);
+            var num_painted: u32 = this.floodColor(col);
 
             this.renderGrid();
 
@@ -222,7 +221,10 @@ pub fn createGameT(comptime R: type) type {
         ///
         /// The goal is to provide a non-allocating solution and
         /// create a very minimal approach to filling a grid with
-        /// colors.
+        /// colors. Uses a stack-based approach with a small
+        /// stack to provide a reasonably fast grid filling system.
+        /// May revisit tiles but at most can probably only visit
+        /// tiles at max 4 times each, which equates to 400*4=1600
         pub fn floodColor(this: *Self, color: types.ColorT) u32 {
             var px: u32 = 0;
             var py: u32 = 0;
@@ -234,7 +236,6 @@ pub fn createGameT(comptime R: type) type {
             while (index < MAXSTACK) : (index += 1) {
                 this.stack[index] = Cord{ .x = 0, .y = 0 };
             }
-            index = 0;
 
             // get our current color (the one to replace)
             const old_color: types.ColorT = this.getColor(px, py);
@@ -255,6 +256,7 @@ pub fn createGameT(comptime R: type) type {
                 // set the current cell's color
                 this.setColor(px, py, color);
                 this.stacksize -= 1;
+                cells_painted += 1;
 
                 // check for friends in the other cardinal directions
                 if ((px > 0) and (this.stacksize < MAXSTACK)) {

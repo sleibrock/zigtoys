@@ -1,50 +1,30 @@
 // game.js
 
-ZIG = {};
-loaded = false;
-
-cnv = window.document.getElementById("game_canvas");
-ctx = cnv.getContext('2d');
+var cnv = window.document.getElementById("game_canvas");
+var ctx = cnv.getContext('2d');
 var toggle = window.document.getElementById("toggle_controls");
 
-memvals = {};
-img = {};
+var memvals = {};
+var img = {};
 
 var App = {
+    zig: null,
     loaded: false,
     array: null,
     img: null,
 };
 
-/*
-var main = function() {
-    var memvals = new Uint8ClampedArray(
-	ZIG.memory.buffer, startaddr, bufsize
-    );
-    var img = new ImageData(
-	memvals, ZIG.getWidth(), ZIG.getHeight()
-    );
-    console.log("Got to before loop");
-    var loop = function() {
-	ZIG.update();
-	ctx.putImageData(img, 0, 0);
-	window.requestAnimationFrame(loop);
-    };
-    loop();
-};
-*/
-
 var initialize = function() {
     console.log("Initializing App data");
     console.log("Start address: " + startaddr);
     console.log("Buffer size: " + bufsize);
-    var startaddr = ZIG.startAddr();
-    var bufsize = ZIG.getSize();
+    var startaddr = App.zig.startAddr();
+    var bufsize = App.zig.getSize();
     App.array = new Uint8ClampedArray(
-	ZIG.memory.buffer, startaddr, bufsize
+	App.zig.memory.buffer, startaddr, bufsize
     );
     App.img = new ImageData(
-	App.array, ZIG.getWidth(), ZIG.getHeight()
+	App.array, App.zig.getWidth(), App.zig.getHeight()
     );
 }
 
@@ -58,15 +38,15 @@ window.document.body.onload = function() {
     WebAssembly.instantiateStreaming(fetch("main.wasm"), {
     }).then(res => {
 	console.log("WASM loaded");
-	ZIG = res.instance.exports;
+	App.zig = res.instance.exports;
 	date = new Date();
-	var res = ZIG.init(640, 480, date.getMilliseconds());
+	var res = App.zig.init(640, 480, date.getMilliseconds());
 	console.log("Memory allocated: " + res);
 	if (res == 0) {
 	    console.log("Failed to allocate memory");
 	    return;
 	}
-	loaded = true;
+	App.loaded = true;
 
 	// bind an on-click event for the canvas
 	cnv.addEventListener('click', (evt) => {
@@ -80,8 +60,8 @@ window.document.body.onload = function() {
 	    var sy = Math.trunc(y / h_ratio);
 	    console.log(rect);
 	    console.log({sx: sx, sy: sy});
-	    var res = ZIG.handle_input(sx, sy);
-	    console.log("handle_input: " + res);
+	    var numc = App.zig.handle_input(sx, sy);
+	    console.log({num_filled: numc});
 	    update();
 	})
 

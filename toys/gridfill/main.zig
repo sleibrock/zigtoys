@@ -59,11 +59,6 @@ export fn getHeight() u32 {
     return Game.render.height;
 }
 
-// test function
-export fn atAddr(x: u32) u8 {
-    return Game.render.vbuf.items[x];
-}
-
 // update the function each allowable frame in client
 // Some games this may be no-op as it awaits input
 // from other callbacks like onclick/onkeydown etc
@@ -71,8 +66,8 @@ export fn update() void {}
 
 // handle mouse input and update the game world
 export fn handle_input(x: u32, y: u32) u32 {
-    var res = Game.handle_click(x, y);
-    return res;
+    var r = Game.handle_click(x, y);
+    return r;
 }
 
 // end main.zig

@@ -100,26 +100,25 @@ pub fn createGameT(comptime R: type) type {
             var randcol: types.ColorT = .Color1;
             while (index < this.size) : (index += 1) {
                 randnum = this.rng.random();
-                if (randnum < 0.1) {
+                if (randnum < 0.125) {
                     randcol = .Color1;
-                } else if (randnum < 0.2) {
+                } else if (randnum < 0.25) {
                     randcol = .Color2;
-                } else if (randnum < 0.3) {
+                } else if (randnum < 0.375) {
                     randcol = .Color3;
-                } else if (randnum < 0.4) {
-                    randcol = .Color4;
                 } else if (randnum < 0.5) {
+                    randcol = .Color4;
+                } else if (randnum < 0.625) {
                     randcol = .Color5;
-                } else if (randnum < 0.6) {
+                } else if (randnum < 0.750) {
                     randcol = .Color6;
-                } else if (randnum < 0.7) {
+                } else if (randnum < 0.875) {
                     randcol = .Color7;
-                } else if (randnum < 0.8) {
-                    randcol = .Color8;
                 } else {
-                    randcol = .Color1;
+                    randcol = .Color8;
                 }
-                this.grid.items[index] = randcol;
+                if (this.grid.items[index] != .Block)
+                    this.grid.items[index] = randcol;
             }
         }
 

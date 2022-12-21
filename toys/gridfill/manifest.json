@@ -1,10 +1,16 @@
 {
-  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
-  "name": "Gridfill",
-  "short_name": "Gridfill",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#000",
-  "description": "A game where you fill a grid with colors.",
-  "icons": []
+    "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+    "name": "Gridfill",
+    "short_name": "Gridfill",
+    "start_url": "/zigtoys/toys/gridfill/index.html",
+    "display": "standalone",
+    "background_color": "#000",
+    "description": "A game where you fill a grid with colors.",
+    "icons": [
+	{
+	    "src": "icons/android-icon-192x192.png",
+	    "sizes": "192x192",
+	    "type": "image/png"
+	}
+    ]
 }

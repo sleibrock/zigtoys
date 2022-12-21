@@ -4,8 +4,6 @@ var cnv = window.document.getElementById("game_canvas");
 var ctx = cnv.getContext('2d');
 var toggle = window.document.getElementById("toggle_controls");
 
-var memvals = {};
-var img = {};
 
 var App = {
     zig: null,
@@ -16,10 +14,10 @@ var App = {
 
 var initialize = function() {
     console.log("Initializing App data");
-    console.log("Start address: " + startaddr);
-    console.log("Buffer size: " + bufsize);
     var startaddr = App.zig.startAddr();
     var bufsize = App.zig.getSize();
+    console.log("Start address: " + startaddr);
+    console.log("Buffer size: " + bufsize);
     App.array = new Uint8ClampedArray(
 	App.zig.memory.buffer, startaddr, bufsize
     );
@@ -69,5 +67,12 @@ window.document.body.onload = function() {
 	update();
     });
 };
+
+// PWA/service worker related code
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/zigtoys/toys/gridfill/sw.js')
+    .then(() => { console.log('Service Worker Registered'); });
+}
 
 // end game.js

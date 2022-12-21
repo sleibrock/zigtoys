@@ -111,8 +111,10 @@ pub fn createGameT(comptime R: type) type {
                 } else if (randnum < 0.5) {
                     randcol = .Color5;
                 } else if (randnum < 0.6) {
-                    randcol = .Color7;
+                    randcol = .Color6;
                 } else if (randnum < 0.7) {
+                    randcol = .Color7;
+                } else if (randnum < 0.8) {
                     randcol = .Color8;
                 } else {
                     randcol = .Color1;
@@ -124,30 +126,39 @@ pub fn createGameT(comptime R: type) type {
         pub fn switchColor(this: *Self, color: types.ColorT) void {
             switch (color) {
                 .Color1 => {
-                    this.render.setColor(255, 0, 0, 255);
+                    // red
+                    this.render.setColor(240, 0, 0, 255);
                 },
                 .Color2 => {
-                    this.render.setColor(0, 255, 0, 255);
+                    // pink
+                    this.render.setColor(250, 0, 247, 255);
                 },
                 .Color3 => {
-                    this.render.setColor(0, 0, 255, 255);
+                    // purple
+                    this.render.setColor(127, 0, 126, 255);
                 },
                 .Color4 => {
-                    this.render.setColor(255, 255, 0, 255);
+                    // tan
+                    this.render.setColor(250, 204, 130, 255);
                 },
                 .Color5 => {
-                    this.render.setColor(255, 0, 255, 255);
+                    // light blue
+                    this.render.setColor(0, 250, 249, 255);
                 },
                 .Color6 => {
-                    this.render.setColor(0, 255, 255, 255);
+                    // dark blue
+                    this.render.setColor(100, 100, 250, 255);
                 },
                 .Color7 => {
-                    this.render.setColor(127, 127, 0, 255);
+                    // green
+                    this.render.setColor(0, 250, 10, 255);
                 },
                 .Color8 => {
-                    this.render.setColor(0, 127, 127, 255);
+                    // yellow
+                    this.render.setColor(250, 249, 0, 255);
                 },
                 .Wall => {
+                    // dark grey
                     this.render.setColor(30, 30, 30, 255);
                 },
             }

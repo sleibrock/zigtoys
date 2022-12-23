@@ -3,7 +3,7 @@
 
 self.addEventListener('install', (e) => {
     e.waitUntil(
-	caches.open('fox-store').then((cache) => cache.addAll([
+	caches.open('floorboys-gridfill').then((cache) => cache.addAll([
 	    '/zigtoys/toys/gridfill/',
 	    '/zigtoys/toys/gridfill/index.html',
 	    '/zigtoys/toys/gridfill/game.js',

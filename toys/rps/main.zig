@@ -154,6 +154,7 @@ export fn update() void {
     for (&World.entities) |*curr_ent, index| {
         curr_ent.move(); // move our unit by it's velocity
 
+        shortest = 9999.0;
         closest_target = null;
         for (&World.entities) |*other_ent, subindex| {
             if (index != subindex) {
@@ -180,6 +181,9 @@ export fn update() void {
         if (closest_target != null) {
             // set current entity to point to it's closest target
             curr_ent.pointTowards(closest_target.?);
+        } else {
+            curr_ent.velocity.x = 0;
+            curr_ent.velocity.y = 0;
         }
 
         drawPic(curr_ent.rect.pos.x, curr_ent.rect.pos.y, switch (curr_ent.t) {
@@ -225,6 +229,8 @@ export fn straightLine(x1: u32, y1: u32, x2: u32) void {
 
 // take two vectors and draw the length of the line via slow interpolation
 fn drawLine(A: VecT, B: VecT) void {
+    _ = A;
+    _ = B;
 }
 
 // crude PPM picture drawing algorithm

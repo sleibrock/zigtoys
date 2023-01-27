@@ -99,9 +99,9 @@ var World = State{
     .buffer = undefined,
 };
 
-const scissors_b = @embedFile("new_scissor.ppm");
-const rock_b = @embedFile("new_rock.ppm");
-const paper_b = @embedFile("new_paper.ppm");
+const scissors_b = @embedFile("assets/new_scissor.ppm");
+const rock_b = @embedFile("assets/new_rock.ppm");
+const paper_b = @embedFile("assets/new_paper.ppm");
 
 export fn init(wx: u32, wy: u32, seed: u32) u32 {
     World.rng = RNG.init(0x12345 | seed);

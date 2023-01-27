@@ -4,9 +4,17 @@ const std = @import("std");
 const alloc = std.heap.page_allocator;
 
 const rng = @import("src/rng.zig");
+const vec2d = @import("src/vec2d.zig");
+const rect = @import("src/rect.zig");
 
-// rename the array list
+// typedef all our used values
+const BASE_FLOAT = f32;
 const ByteList = std.ArrayList(u8);
+const VecT = vec2d.NewVec2D(BASE_FLOAT);
+const RectT = rect.NewRect(BASE_FLOAT);
+
+const NUM_ENTS: usize = 200;
+
 
 const EntityT = enum(u8) {
     Rock,
@@ -15,68 +23,52 @@ const EntityT = enum(u8) {
 };
 
 const Entity = struct {
-    px: f32,
-    py: f32,
-    vx: f32,
-    vy: f32,
+    rect: RectT,
+    velocity: VecT,
     t: EntityT,
-    next: EntityT,
 
     /// initialize an entity
     fn init(x: f32, y: f32, t: EntityT) Entity {
         return Entity{
-            .px = x,
-            .py = y,
-            .vx = 0,
-            .vy = 0,
+            .rect = RectT.init(x, y, 16, 16),
+            .velocity = VecT.init(0, 0),
             .t = t,
-            .next = t,
         };
     }
 
     /// move the entity around
     fn move(self: *Entity) void {
-        self.px += self.vx;
-        self.py += self.vy;
+        self.rect.pos.x += self.velocity.x;
+        self.rect.pos.y += self.velocity.y;
     }
 
     /// determine if a given entity is an opponent or not
     fn foundPrey(self: *Entity, other: *Entity) bool {
-        switch (self.t) {
-            .Rock => {
-                return other.t == .Paper;
-            },
-            .Paper => {
-                return other.t == .Rock;
-            },
-            else => {
-                return other.t == .Scissors;
-            },
-        }
+        return switch (self.t) {
+            .Rock => other.t == .Scissors,
+            .Paper => other.t == .Rock,
+            .Scissors => other.t == .Paper, 
+        };
     }
 
     /// Calculate cartesian distance as a 1/sqrt(x) value
     /// hopefully optimizing away the fast inverse square root issue
     /// 1 / sqrt(dx^2 + dy^)
     fn distanceTo(self: *Entity, other: *Entity) f32 {
-        const dx = self.px - other.px;
-        const dy = self.py - other.py;
-        return @divExact(1.0, @sqrt((dx * dx) + (dy - dy)));
+        return self.rect.pos.distanceTo(&other.rect.pos);
     }
 
     /// Point the current entity to the given (enemy?) entity
-    fn pointTowards(self: *Entity, other: *Entity, mag: f32) void {
-        // calculate a new trajectory vector (v2 - v1)
-        var dx = other.px - self.px;
-        var dy = other.py - self.py;
-        self.vx = dx * mag;
-        self.vy = dy * mag;
+    /// involves setting velocity to (B-A)/|(B-A)|
+    fn pointTowards(self: *Entity, other: *Entity) void {
+        self.velocity.x = other.rect.pos.x;
+        self.velocity.y = other.rect.pos.y;
+        self.velocity.sub(&self.rect.pos); // subtract A (itself)
+        self.velocity.normalize(); // normalize / divide by it's magnitude
     }
 
     fn overlap(self: *Entity, other: *Entity) bool {
-        _ = self;
-        _ = other;
-        return false;
+        return self.rect.intersects(&other.rect);
     }
 };
 
@@ -87,7 +79,7 @@ const State = struct {
     width: u32,
     height: u32,
     rng: RNG,
-    entities: [100]Entity,
+    entities: [NUM_ENTS]Entity,
     buffer: ByteList,
 };
 
@@ -120,18 +112,17 @@ export fn init(wx: u32, wy: u32, seed: u32) u32 {
         World.buffer.items[index] = 255;
     }
 
-    // fill the entities array with scissors!
-    index = 0;
-    while (index < 100) : (index += 1) {
-        var rx = @intToFloat(f32, World.rng.next() % 640);
-        var ry = @intToFloat(f32, World.rng.next() % 480);
+    // fill the entities array with randomized entities
+    for (&World.entities) |*e| {
+        var rx = @intToFloat(f32, World.rng.next() % 620);
+        var ry = @intToFloat(f32, World.rng.next() % 460);
         var t = EntityT.Scissors;
         var rr = World.rng.random(); // float32
         if (rr > 0.34)
             t = .Rock;
         if (rr > 0.67)
             t = .Paper;
-        World.entities[index] = Entity.init(rx, ry, t);
+        e.* = Entity.init(rx, ry, t);
     }
 
     return wx * wy * 4;
@@ -156,50 +147,49 @@ export fn getHeight() u32 {
 export fn update() void {
     clear(); // clear screen
 
-    var index: usize = 0;
-    var subindex: usize = 0;
-    var cur_e: ?*Entity = null;
-    var oth_e: ?*Entity = null;
     var tmpd: f32 = 0.0;
     var shortest: f32 = 9999.0;
-    var shortest_index: usize = 0;
+    var closest_target: ?*Entity = null;
 
-    while (index < 100) : (index += 1) {
-        // update the velocity to find enemies
-        cur_e = &World.entities[index];
-        cur_e.?.move(); // move the unit
+    for (&World.entities) |*curr_ent, index| {
+        curr_ent.move(); // move our unit by it's velocity
 
-        subindex = 0;
-        while (subindex < 100) : (subindex += 1) {
+        closest_target = null;
+        for (&World.entities) |*other_ent, subindex| {
             if (index != subindex) {
-                oth_e = &World.entities[subindex];
-
                 // determine if oth_e is our enemy
-                if (cur_e.?.foundPrey(oth_e.?)) {
+                if (curr_ent.foundPrey(other_ent)) {
                     // do a distance check to see if it's shortest
-                    tmpd = cur_e.?.distanceTo(oth_e.?);
+                    tmpd = curr_ent.distanceTo(other_ent);
                     if (tmpd < shortest) {
                         shortest = tmpd;
-                        shortest_index = subindex;
+                        closest_target = other_ent;
                     }
 
                     // do we overlap with this enemy yet?
-                    if (cur_e.?.overlap(oth_e.?)) {
+                    if (curr_ent.overlap(other_ent)) {
                         // do some logic here
+                        // can occur outside of shortest distance check
+                        other_ent.t = curr_ent.t;
                     }
                 }
             }
-            // find a collison?
-            // if (World.entities[index].collides)
         }
 
-        drawPic(cur_e.?.px, cur_e.?.py, switch (cur_e.?.t) {
+        // change our velocity to move towards our shortest-distance prey
+        if (closest_target != null) {
+            // set current entity to point to it's closest target
+            curr_ent.pointTowards(closest_target.?);
+        }
+
+        drawPic(curr_ent.rect.pos.x, curr_ent.rect.pos.y, switch (curr_ent.t) {
             .Scissors => scissors_b,
             .Rock => rock_b,
             .Paper => paper_b,
         });
     }
 }
+
 
 fn calcPos(x: u32, y: u32) usize {
     return ((y * World.width) + x) * 4;
@@ -233,6 +223,12 @@ export fn straightLine(x1: u32, y1: u32, x2: u32) void {
     }
 }
 
+// take two vectors and draw the length of the line via slow interpolation
+fn drawLine(A: VecT, B: VecT) void {
+}
+
+// crude PPM picture drawing algorithm
+// requires a buffer of *exactly* 16x16x4
 fn drawPic(x: f32, y: f32, buf: *const [768:0]u8) void {
     var ox: u32 = @floatToInt(u32, x);
     var oy: u32 = @floatToInt(u32, y);

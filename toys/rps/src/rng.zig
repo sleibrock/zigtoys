@@ -39,6 +39,15 @@ pub fn NewType(comptime T: type) type {
         /// and the maximum possible values that can be received
         /// if unsupported, maybe panic the program entirely?
         pub fn random(self: *Self) f32 {
+            // author's note: WASM does not use unsigned values
+            // (probably because they cause underflow errors)
+            // therefore these boundaries may not hold true
+            // in the WASM domain and get casted into i32/i64 accordingly
+            //
+            // another note:
+            // float division on long numbers is not ideal since
+            // moving decimal point can cause f32/f64 values to effectively be "wrong"
+            // and may be better to move logic into @divExact
             var v: T = self.next(); // move state forward one
             return comptime switch (T) {
                 u32 => {

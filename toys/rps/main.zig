@@ -78,6 +78,7 @@ const RNG = rng.NewType(u32);
 const State = struct {
     width: u32,
     height: u32,
+    boundbox: RectT,
     rng: RNG,
     entities: [NUM_ENTS]Entity,
     buffer: ByteList,
@@ -86,6 +87,7 @@ const State = struct {
 var World = State{
     .width = 0,
     .height = 0,
+    .boundbox = RectT.init(0,0,0,0),
     .rng = undefined,
     .entities = undefined,
     .buffer = undefined,
@@ -96,9 +98,11 @@ const rock_b = @embedFile("assets/new_rock.ppm");
 const paper_b = @embedFile("assets/new_paper.ppm");
 
 export fn init(wx: u32, wy: u32, seed: u32) u32 {
-    World.rng = RNG.init(0x12345 | seed);
+    World.rng = RNG.init(seed);
     World.width = wx;
     World.height = wy;
+    World.boundbox.width = @intToFloat(BASE_FLOAT, wx);
+    World.boundbox.height = @intToFloat(BASE_FLOAT, wy);
     World.buffer = ByteList.initCapacity(alloc, wx * wy * 4) catch |err| {
         switch (err) {
            else => {
@@ -153,6 +157,12 @@ export fn update() void {
 
     for (&World.entities) |*curr_ent, index| {
         curr_ent.move(); // move our unit by it's velocity
+
+        if (!World.boundbox.intersects(&curr_ent.rect)) {
+            // logic to push the entity back into the world
+            curr_ent.rect.pos.x = World.rng.random() * 640.0;
+            curr_ent.rect.pos.y = World.rng.random() * 480.0;
+        }
 
         shortest = 9999.0;
         closest_target = null;

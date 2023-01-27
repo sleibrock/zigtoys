@@ -12,6 +12,19 @@
 	  width: 300px;
 	  margin: 0 auto;
       }
+      @media screen and (max-width: 600px) {
+	  body {
+	      width: 100% !important;
+	      margin: 0px !important;
+	  }
+	  canvas {
+	      width: 100% !important;
+	  }
+
+	  .showhide {
+	      display: none !important;
+	  }
+      }
     </style>
   </head>
   <body>
@@ -22,6 +35,7 @@
       </canvas>
       <br/>
       <h5>Controls</h5>
+      <p>You let it play itself. Refresh the page when the game is over.</p>
     </div>
   </body>
   <script src="game.js"></script>

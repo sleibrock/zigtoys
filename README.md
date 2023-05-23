@@ -1,11 +1,19 @@
 Zigtoys - Demos with WASM
 ===
 
-Zigtoys is a repository dedicated as a Zig experimental playground. It started entirely with me having little-to-no insight into WebAssembly, and with these miniature demo apps I have a little more confidence and insight into the workings of WebAssembly.
+Zigtoys is a collection of "toy" applications I have written in Zig, targeting WebAssembly. It is a demonstration of what you can do with some very minimal Zig. The goal is to focus on design and creating composable code that is easy to re-use, with simplicity in mind.
 
-## General Rules of Thumb
+[dev.to](https://dev.to/) articles I have written using this repo:
+* [WebAssembly with Zig, Part 1](https://dev.to/sleibrock/webassembly-with-zig-part-1-4onm)
+* [WebAssembly with Zig, Part 2](https://dev.to/sleibrock/webassembly-with-zig-pt-ii-ei7)
 
-JavaScript-to-Zig - the types.
+## Personal Notes on Zig/WASM
+
+Below is a collection of notes I have written when I got started with Zig and WASM compilation. Do not take them as official documentation; there are multiple ways you can approach problems. I try to cover all bases, but this is mostly a self-discovery project.
+
+### JavaScript-to-Zig - the types.
+
+(TODO: consider re-writing this section as it's awfully confusing)
 
 JavaScript when calling WASM functions converts types in weird ways, and some things do not work the way you would like it to.
 
@@ -19,10 +27,10 @@ Let's imagine we have an array of eight bytes that can store messages to pass be
 var stringbuf: [8]u8 = undefined;
 
 export fn setCharAt(index: u32, val: u8) bool {
-	if (index >= 8)
-		return false;
-	stringbuf[index] = val;
-	return true;
+    if (index >= 8)
+        return false;
+    stringbuf[index] = val;
+    return true;
 }
 ```
 
@@ -30,9 +38,9 @@ And a JavaScript function to iterate through JavaScript strings and pass it in.
 
 ```javascript
 var pass_string = function(str) {
-    for(var i=0; i<str.length; i++) {
-		ZIG.setCharAt(i, str[i]);
-	}
+    for(var i=0; i < str.length; i++) {
+        ZIG.setCharAt(i, str[i]);
+    }
 };
 ```
 
@@ -50,7 +58,7 @@ What you can do:
 const someVar: u32 = 10000;
 
 export fn addrToVar() *u32 {
-	return &someVar;
+    return &someVar;
 }
 ```
 
@@ -60,12 +68,14 @@ This is a safe operation as it is a fixed memory address inside our WASM code. E
 // take an address from javascript
 // illegal/shouldn't work at all
 export fn countItems(items: *[]u32) u32 {
-	// unknown array size to zig, not compile-time known
-	// ...
+    // unknown array size to zig, not compile-time known
+    // ...
 }
 ```
 
-Performance - WASM isn't always the solution
+For something to be pinned in memory in JavaScript, you have to use a structure that can hold the memory in place, like `TextEncoder` to freeze an array of `u8` bytes from JavaScript. Dynamic memory can be freed by the JavaScript garbage collector when it does it's GC sweeps (usually only when things leave lexical scope), but using something like `TextEncoder` allows you to pass a pointer of a buffer to Zig.
+
+### Performance - WASM isn't always the solution
 
 When I say WASM isn't always the solution, I mean it in a very nice way. WASM is an engine that lives inside a C/C++ codebase, and is interpreted in a very deterministic way. That being said, because it lives inside a C/C++ codebase, any WASM code is inherently never going to be as fast as the *actual* browser running it. You can get close, but you'll never reach the sun.
 
@@ -102,16 +112,16 @@ That's right, we can't use Zig errors, something pretty fundamental to the langu
 ```zig
 // bad - can't use the !T error return
 export fn init(alloc: *Allocator) !void {
-	var some_mem: [1000]u32 = try alloc.initCapacity(u32, 1000);
+    var some_mem: [1000]u32 = try alloc.initCapacity(u32, 1000);
 }
 
 // ok - using catch to "catch" the error
 export fn init(alloc: *Allocator) u32 {
-	var some_mem: [1000]u32 = alloc.initCapacity(u32, 1000) catch |err| {
-		switch (err) {
-			else => { return 0; },
-		}
-	};
+    var some_mem: [1000]u32 = alloc.initCapacity(u32, 1000) catch |err| {
+        switch (err) {
+            else => { return 0; },
+        }
+    };
 }
 ```
 
@@ -132,17 +142,17 @@ Lastly a word about enumerations. If you do this:
 
 ```zig
 const Entity = enum(u8) {
-	CellA = 0,
-	CellB = 1,
-	CellC = 2,
+    CellA = 0,
+    CellB = 1,
+    CellC = 2,
 };
 
 pub fn doWithEntity(ent: Entity) u32 {
-	return switch(ent) {
-		.CellA => 0,
-		.CellB => 1,
-		.CellC => 2,
-	};
+    return switch(ent) {
+        .CellA => 0,
+        .CellB => 1,
+        .CellC => 2,
+    };
 }
 ```
 
@@ -150,7 +160,7 @@ This code is valid Zig and passes the compiler. What it *doesn't* pass is the us
 
 ```javascript
 var do_ent = function(x) {
-	return ZIG.doWithEntity(x);
+    return ZIG.doWithEntity(x);
 }
 
 console.log(do_ent(3));
@@ -194,19 +204,19 @@ Either way, consider this a bit of a footgun and don't write state machines with
 
 ```zig
 const Entity = enum(u8) {
-	CellA = 0,
-	CellB = 1,
-	CellC = 2,
-	Bad = 3,
+    CellA = 0,
+    CellB = 1,
+    CellC = 2,
+    Bad = 3,
 };
 
 pub fn doWithEntity(ent: Entity) u32 {
-	return switch(ent) {
-		.CellA => 0,
-		.CellB => 1,
-		.CellC => 2,
-		else => 99,
-	};
+    return switch(ent) {
+        .CellA => 0,
+        .CellB => 1,
+        .CellC => 2,
+        else => 99,
+    };
 }
 ```
 

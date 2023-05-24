@@ -190,8 +190,8 @@ export fn update() void {
         closest_target = null;
         for (&World.entities, 0..) |*other_ent, subindex| {
             if (index != subindex) {
-                // determine if oth_e is our enemy
-                if (curr_ent.foundPrey(other_ent) or curr_ent.foundHunter(other_ent)) {
+                // check if the current selected entity is not one of our own
+                if (curr_ent.t != other_ent.t) {
                     // do a distance check to see if it's shortest
                     tmpd = curr_ent.distanceTo(other_ent);
                     if (tmpd < shortest) {

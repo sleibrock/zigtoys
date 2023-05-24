@@ -1,6 +1,7 @@
 // main.zig
 
 const std = @import("std");
+const math = std.math;
 const alloc = std.heap.page_allocator;
 
 const render = @import("src/render.zig");

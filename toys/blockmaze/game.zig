@@ -262,7 +262,7 @@ export fn update(dir: Direction) void {
             });
             _ = set_pos(goalx, goaly, switch (curr_e) {
                 .SwitchDoorWPlayer => .Player,
-                else => .Player, // ?
+                else => .Player,
             });
         },
         .InactiveSwitch => {
@@ -274,6 +274,7 @@ export fn update(dir: Direction) void {
             replace_cells(.InactiveSwitchDoor, .SwitchDoor);
         },
         .PurpleKey => {
+            _ = set_pos(WORLD.playerx, WORLD.playery, .Empty);
             _ = set_pos(goalx, goaly, .Player);
             replace_cells(.PurpleDoor, .Empty);
         },

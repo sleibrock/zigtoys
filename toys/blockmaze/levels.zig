@@ -80,7 +80,7 @@ pub const Level3 = Level{
 };
 
 pub const Level4 = Level{
-    .startx = 0,
+    .startx = 1,
     .starty = 0,
     .blocks = 1,
     .cells = [_]u8{
@@ -98,9 +98,9 @@ pub const Level4 = Level{
 };
 
 pub const Level5 = Level{
-    .startx = 0,
+    .startx = 1,
     .starty = 0,
-    .blocks = 1,
+    .blocks = 2,
     .cells = [_]u8{
         2, 1, 0, 2, 2, 2, 2, 2, 2, 2,
         2, 0, 0, 0, 0, 0, 0, 0, 0, 2,

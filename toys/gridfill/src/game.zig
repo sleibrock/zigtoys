@@ -117,7 +117,7 @@ pub fn createGameT(comptime R: type) type {
                 } else {
                     randcol = .Color8;
                 }
-                if (this.grid.items[index] != .Block)
+                if (this.grid.items[index] != .Wall)
                     this.grid.items[index] = randcol;
             }
         }

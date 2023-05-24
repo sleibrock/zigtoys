@@ -7,6 +7,18 @@ Zigtoys is a collection of "toy" applications I have written in Zig, targeting W
 * [WebAssembly with Zig, Part 1](https://dev.to/sleibrock/webassembly-with-zig-part-1-4onm)
 * [WebAssembly with Zig, Part 2](https://dev.to/sleibrock/webassembly-with-zig-pt-ii-ei7)
 
+## Build Command
+
+The Zig compiler options are prone to change, and most recently have changed with version `0.11`. The command to build all source files here with current Zig is as follows:
+
+```shell
+$ zig build-lib <file> -target wasm32-freestanding -dynamic -rdynamic -O ReleaseSmall
+```
+
+Behavior was changed in Zig's compiler to remove certain implicit behavior, so the `-rdynamic` flag is now required in order to export WASM binaries.
+
+(As it stands, I currently cannot figure out for my life how to navigate the `build.zig` library, so I am ignoring it for now until it's relatively "stable", as just like the compiler options, should be considered always changing)
+
 ## Personal Notes on Zig/WASM
 
 Below is a collection of notes I have written when I got started with Zig and WASM compilation. Do not take them as official documentation; there are multiple ways you can approach problems. I try to cover all bases, but this is mostly a self-discovery project.

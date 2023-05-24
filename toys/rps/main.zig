@@ -13,15 +13,20 @@ const ByteList = std.ArrayList(u8);
 const VecT = vec2d.NewVec2D(BASE_FLOAT);
 const RectT = rect.NewRect(BASE_FLOAT);
 
+
+/// Fix-sized number of entities on screen
 const NUM_ENTS: usize = 200;
 
 
+/// The EntityT that describes our players in the game
 const EntityT = enum(u8) {
     Rock,
     Paper,
     Scissors,
 };
 
+
+/// The Entity struct that contains all the data about our players
 const Entity = struct {
     rect: RectT,
     velocity: VecT,
@@ -42,12 +47,21 @@ const Entity = struct {
         self.rect.pos.y += self.velocity.y;
     }
 
-    /// determine if a given entity is an opponent or not
+    /// determine if a given entity is our prey or not
     fn foundPrey(self: *Entity, other: *Entity) bool {
         return switch (self.t) {
             .Rock => other.t == .Scissors,
             .Paper => other.t == .Rock,
-            .Scissors => other.t == .Paper, 
+            .Scissors => other.t == .Paper,
+        };
+    }
+
+    /// determine if a given entity is our hunter or not
+    fn foundHunter(self: *Entity, other: *Entity) bool {
+        return switch (self.t) {
+            .Rock => other.t == .Paper,
+            .Paper => other.t == .Scissors,
+            .Scissors => other.t == .Rock,
         };
     }
 
@@ -67,6 +81,13 @@ const Entity = struct {
         self.velocity.normalize(); // normalize / divide by it's magnitude
     }
 
+    /// Point away is the inverse of pointTowards, useful for running away
+    fn pointAway(self: *Entity, other: *Entity) void {
+        self.pointTowards(other);
+        self.velocity.scale(-1.0);
+    }
+
+    /// Calculate an intersection of two rectangles of entities
     fn overlap(self: *Entity, other: *Entity) bool {
         return self.rect.intersects(&other.rect);
     }
@@ -75,6 +96,7 @@ const Entity = struct {
 // init an RNG
 const RNG = rng.NewType(u32);
 
+/// Layout of our World type
 const State = struct {
     width: u32,
     height: u32,
@@ -84,19 +106,26 @@ const State = struct {
     buffer: ByteList,
 };
 
+
+/// Our world structure
 var World = State{
     .width = 0,
     .height = 0,
-    .boundbox = RectT.init(0,0,0,0),
+    .boundbox = RectT.init(0, 0, 0, 0),
     .rng = undefined,
     .entities = undefined,
     .buffer = undefined,
 };
 
+
+/// Embed our entity images as binary strings
+/// These are PPM types with headers stripped out
 const scissors_b = @embedFile("assets/new_scissor.ppm");
 const rock_b = @embedFile("assets/new_rock.ppm");
 const paper_b = @embedFile("assets/new_paper.ppm");
 
+
+/// Initialize our game world from JavaScript
 export fn init(wx: u32, wy: u32, seed: u32) u32 {
     World.rng = RNG.init(seed);
     World.width = wx;
@@ -105,7 +134,7 @@ export fn init(wx: u32, wy: u32, seed: u32) u32 {
     World.boundbox.height = @intToFloat(BASE_FLOAT, wy);
     World.buffer = ByteList.initCapacity(alloc, wx * wy * 4) catch |err| {
         switch (err) {
-           else => {
+            else => {
                 return 1;
             },
         }
@@ -132,22 +161,15 @@ export fn init(wx: u32, wy: u32, seed: u32) u32 {
     return wx * wy * 4;
 }
 
-export fn startAddr() *u8 {
-    return &World.buffer.items[0];
-}
 
-export fn getSize() u32 {
-    return World.width * World.height * 4;
-}
+/// Generic getter functions for JS space
+export fn startAddr() *u8 { return &World.buffer.items[0]; }
+export fn getSize() u32 { return World.width * World.height * 4; }
+export fn getWidth() u32 { return World.width; }
+export fn getHeight() u32 { return World.height; }
 
-export fn getWidth() u32 {
-    return World.width;
-}
 
-export fn getHeight() u32 {
-    return World.height;
-}
-
+/// General update function for each frame
 export fn update() void {
     clear(); // clear screen
 
@@ -155,7 +177,7 @@ export fn update() void {
     var shortest: f32 = 9999.0;
     var closest_target: ?*Entity = null;
 
-    for (&World.entities) |*curr_ent, index| {
+    for (&World.entities, 0..) |*curr_ent, index| {
         curr_ent.move(); // move our unit by it's velocity
 
         if (!World.boundbox.intersects(&curr_ent.rect)) {
@@ -166,10 +188,10 @@ export fn update() void {
 
         shortest = 9999.0;
         closest_target = null;
-        for (&World.entities) |*other_ent, subindex| {
+        for (&World.entities, 0..) |*other_ent, subindex| {
             if (index != subindex) {
                 // determine if oth_e is our enemy
-                if (curr_ent.foundPrey(other_ent)) {
+                if (curr_ent.foundPrey(other_ent) or curr_ent.foundHunter(other_ent)) {
                     // do a distance check to see if it's shortest
                     tmpd = curr_ent.distanceTo(other_ent);
                     if (tmpd < shortest) {
@@ -179,18 +201,25 @@ export fn update() void {
 
                     // do we overlap with this enemy yet?
                     if (curr_ent.overlap(other_ent)) {
-                        // do some logic here
-                        // can occur outside of shortest distance check
-                        other_ent.t = curr_ent.t;
+                        if (curr_ent.foundPrey(other_ent)) {
+                            other_ent.t = curr_ent.t;
+                        } else if (curr_ent.foundHunter(other_ent)) {
+                            curr_ent.t = other_ent.t;
+                        }
                     }
                 }
             }
         }
 
-        // change our velocity to move towards our shortest-distance prey
-        if (closest_target != null) {
-            // set current entity to point to it's closest target
-            curr_ent.pointTowards(closest_target.?);
+        // if we have a nearby target, set velocity towards/away from
+        // based on if it's a prey or our hunter
+        if (closest_target) |closest| {
+            // if it's the prey, point towards it
+            if (curr_ent.foundPrey(closest)) {
+                curr_ent.pointTowards(closest);
+            } else if (curr_ent.foundHunter(closest)) {
+                curr_ent.pointAway(closest);
+            }
         } else {
             curr_ent.velocity.x = 0;
             curr_ent.velocity.y = 0;
@@ -203,7 +232,6 @@ export fn update() void {
         });
     }
 }
-
 
 fn calcPos(x: u32, y: u32) usize {
     return ((y * World.width) + x) * 4;

@@ -23,69 +23,111 @@ Behavior was changed in Zig's compiler to remove certain implicit behavior, so t
 
 Below is a collection of notes I have written when I got started with Zig and WASM compilation. Do not take them as official documentation; there are multiple ways you can approach problems. I try to cover all bases, but this is mostly a self-discovery project.
 
-### JavaScript-to-Zig - the types.
+### Calling Zig from JavaScript
 
-(TODO: consider re-writing this section as it's awfully confusing)
+The first thing that you'll want to familiarize yourself is the convention of invoking Zig functions from JavaScript space. In reality you're not calling Zig, you're calling WASM functions, which were compiled from Zig. When Zig is compiled to WASM, they're compiled in a way that conforms to the WebAssembly standard, so there's a basic ABI that Zig must compile for in order for this all to work.
 
-JavaScript when calling WASM functions converts types in weird ways, and some things do not work the way you would like it to.
+To WebAssembly, there's only four data types: `i32`, `i64`, `f32`, and `f64`. That's right, there's no unsigned values here; it's just enough to make us compatible with probably every JavaScript runtime with minimal issues. If you're passing integers or pointers, they're going to be signed integers. Booleans will be considered integers as well. Anything needing a decimal point is floating-point.
 
-For starters, you might want to forget about the idea of strings entirely. A normal string in JavaScript is a specially-allocated object on the JavaScript heap, and it can be garbage-collected as needed by the JavaScript runtime engine. That is to say, it's lifetime isn't exactly... guaranteed, by any systems for what I can tell, and isn't a reliable method for sharing data.
+Zig has a lot of types, but has to cram all their typing to meet this ABI. Any `u32` you use in Zig code will more likely than not end up as an `i32`, and anything smaller than that is going to get chucked into an `i32` and padded appropriately. The careful use of your `u8` or `u16`'s or even `u1` may get disregarded, so get yourself comfortable with the 32-bits of space you'll get assigned for almost every variable.
 
-Sharing a pointer to this array is nothing short of hard, because Zig doesn't have access to the JavaScript memory. Strings are really specialized, heap-allocated lists containing numbers that represent ASCII characters, and as such we would need to come up with strategies in order to share information with Zig.
+So, for the most part, when you try to call a Zig function, remember that it really only understands *numbers*. Anything else would be futile.
 
-Let's imagine we have an array of eight bytes that can store messages to pass between Zig/JS space. We can write this in Zig with:
+### Okay, So Strings
+
+Passing a string into a WebAssembly function isn't quite so easy. There are ways of working around it with two different trains of thought. But right off that bat:
+
+```javascript
+WASMblob.function("Hello world!");
+```
+
+Won't amount to much good for us. JavaScript is a dynamically-typed language, meaning it allows us to allocate dynamic-length types like strings on the fly. Once the string is used, it gets deallocated almost immediately after since there's no point in keeping it alive.
+
+Even then, the above function is tricky, because Zig doesn't play the nicest with unknown-sized types. It also can't take slices as inputs, it needs *pointers* to the string in some capacity. JavaScript, when you pass a string like that, doesn't pass a pointer. Most likely because there is no permanent binding for the above-used string. Once the garbage collector throws it away, what is Zig supposed to do about that? It's gone and done.
+
+In some capacity, I find it easier to work with Zig when you treat it as a simple machine with basic interactions. Should you have need to copy string data over, and you want to do it without allocations, consider using static-sized input copy-arrays to copy information over from JavaScript. Use small chunk sizes to 
 
 ```zig
-var stringbuf: [8]u8 = undefined;
+const buflen: usize = 32;
+var stringbuf: [buflen]u8 = undefined;
 
 export fn setCharAt(index: u32, val: u8) bool {
-    if (index >= 8)
+    if (index >= buflen)
         return false;
     stringbuf[index] = val;
     return true;
 }
 ```
 
-And a JavaScript function to iterate through JavaScript strings and pass it in.
+This is a simple function by which WASM will set aside memory for a 32-byte long string to copy information from JavaScript space one byte at a time. It's not hard to implement this in the JavaScript side.
 
 ```javascript
 var pass_string = function(str) {
     for(var i=0; i < str.length; i++) {
-        ZIG.setCharAt(i, str[i]);
+        WASM.setCharAt(i, str[i]);
     }
 };
 ```
 
-By default, Zig works really well when types are `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `f32` and `f64`. However, when you pass values larger than these types into Zig, they aren't implicitly clamped to a value range, and instead you need to take that into consideration when designing applications. If you pass `256` to a `u8` expecting function, it won't be `255`.
+Now you have a simple interface to copy strings over slow one at a time, and a Boolean return value indicates if the copy was successful or not.
 
-However this can impede performance penalties since it's (very tiny) array copying. If you really need to communicate parameter modifications, you might want to consider using numerical values mapped to enumerations in Zig. Unless of course you're designing a text-based application.
+However, it would be dishonest to say that this is the only way to copy strings into WASM space. When a string in JavaScript is made, it's allocated as a buffer of integers, but in order to pass it along to WASM, you must use a specific array of clamped integers to do so and pass it as a pointer. `UInt8ClampedArray` is a way of doing so. It needs to not get cleaned up by the garbage collector, so it must be bound to a variable in a safe lexical scope area. On top of that, the length of the array must also be passed as well.
 
-### Pointers - usable, but use wisely
+### So what about Pointers?
 
-Pointers can be used to export a lot of data from the memory buffer, but taking in pointers shouldn't even be considered for public external facing functions. It doesn't exist. As far as Zig is concerned, the `*T` type should refer to an *exact* memory location of *one* item, not many items. A `*[]T` is a slice that needs at *compile-time* to know the length of the array itself.
+In order for Zig to be compliant to a C ABI for WASM purposes, we first must learn how Zig handles pointers to values.
 
-What you can do:
+* `*T` - a pointer to a single item of type `T`
+* `[*]T` - a pointer an unknown-sized array of items of type `T`
+
+The asterisk in the middle of square brackets sort of makes sense when you look at definitions like `[10]u8`, which is an array of 10 `u8` integers. However it changes when we look at fix-sized arrays.
+
+* `*[N]T` - a pointer to an `N`-sized array of type `T`
+
+The normal declaration for arrays uses the `[N]T` format, so it makes sense, moving the asterisk is anothing quirk, but okay. Fine.
+
+* `[]T` - this is a *slice*; it contains a pointer to `[*]T` and a length.
+
+Alright, things are fine up until now. However, there's one type of array/slice we left out, called "sentinel-terminated", which means that we can define a type of an array with a value that sits at the end of an array. Meaning if we define `[_]u8{ 1, 2, 3, 4 }`, in the fifth position (index 4) sits a zero to indicate a null-termination. Most things can be zero-terminated, but some arrays will not be, so you can define what the terminator value will be with this syntax.
+
+* `[N:x]T` - an `N`-sized array where the last value in position `N` is expected to be the value of `x` for a given type `T`
+
+This also works on slices, with:
+
+* `[:x]T` - a slice where the last value should be `x` for a slice of type `T`
+
+That felt like an exhausting amount of work, but the null-terminating syntax is helpful. It was always implicit in C language that most arrays should end with `\0` as the terminating character, but here we can define that as part of the *type* itself, so the compiler can do some extra work to figure things out.
+
+Now, a way you can pass strings around to WASM and back would be to pass a pointer to an array of characters, so this would mean a type of `[*]u8`. If you wrote a function to work on top of that, then you're getting somewhere.
 
 ```zig
-const someVar: u32 = 10000;
-
-export fn addrToVar() *u32 {
-    return &someVar;
+fn do_stuff(buffer: [*]u8) void {
+	// do stuff with a buffer
+	for (buffer) |char| {
+		// ~~ code ~~
+	}
 }
 ```
 
-This is a safe operation as it is a fixed memory address inside our WASM code. Exporting pointers to things inside our WASM is fine. We cannot however do the reverse since JavaScript cannot give away pointer locations in memory and expect to safely share that with Zig. Therefore, the reverse scenario isn't possible.
+However, this lacks a length. The length of this array is unknown, thanks to the typing, so this doesn't really work. It would be a better idea to use a null-terminating string instead.
 
 ```zig
-// take an address from javascript
-// illegal/shouldn't work at all
-export fn countItems(items: *[]u32) u32 {
-    // unknown array size to zig, not compile-time known
-    // ...
-}
+fn do_stuff(buffer: [*:0]u8) void {
+	// ...
 ```
 
-For something to be pinned in memory in JavaScript, you have to use a structure that can hold the memory in place, like `TextEncoder` to freeze an array of `u8` bytes from JavaScript. Dynamic memory can be freed by the JavaScript garbage collector when it does it's GC sweeps (usually only when things leave lexical scope), but using something like `TextEncoder` allows you to pass a pointer of a buffer to Zig.
+...But JavaScript strings by default aren't null-terminated. In order to get a string fully-working from JavaScript into WASM space, you'd have to fully-copy the string into WASM memory, insert a null-terminator character, then you can pass the pointer to that memory over to Zig. The whole process is honestly quite tedious.
+
+```javascript
+var my_string = "hello!";
+var ptr_to_str = WASM.allocate_string(my_string.length + 1);
+var buffer = Uint8Array(WASM.memory, ptr_to_str, my_string.length + 1);
+buffer.set(my_string); // O(n) copy
+buffer[my_string.length + 1] = 0; // null terminate it
+WASM.do_stuff(ptr_to_str);
+```
+
+Note that the allocation *can* fail, so you must also handle a case for if and when that can occur. I didn't define what `allocate_string` might look like, but I leave that up to the reader as an exercise.
 
 ### Performance - WASM isn't always the solution
 
@@ -94,10 +136,10 @@ When I say WASM isn't always the solution, I mean it in a very nice way. WASM is
 This model of execution can be thought of as the following graph:
 
 ```
-  [JavaScript]
-   ^       ^
-  /         \
- v           v
+   [JavaScript]
+    ^       ^
+   /         \
+  v           v
 [WASM] <---> [Browser]
 ```
 
@@ -117,7 +159,7 @@ This affects your WASM size, and the larger your static arrays get, the larger t
 
 The default `std.mem.page_allocator` works really well and when loading WASM modules, the memory management is pretty hands-off and requires zero effort on my part. The only hang-up is that you have to deal with errors yourself in a "C" style way, instead of using mechanisms inside Zig that help us deal with errors (error values, `try` keyword, etc).
 
-### No Error Enumerations
+### No Zig Errors
 
 That's right, we can't use Zig errors, something pretty fundamental to the language. Oh well, maybe one day. But for now, any code that makes use of `try` needs to be refactored to use `catch` in the code and deal with the error explicitly.
 
@@ -137,7 +179,7 @@ export fn init(alloc: *Allocator) u32 {
 }
 ```
 
-Zig uses a C ABI to export code into WASM, which is perfectly fine, but changes how we can use the language. Bit of a let down, but it is what it is, and it isn't that much work to get it set up. There's only so many places your code should be yielding errors, and it's typically due to external I/O like open/reading files, memory, system calls or subprocesses. In the case of WASM, you *shouldn't* really have that many problems unless you're dealing with a lot of network-oriented data, like pulling in images or videos over the net.
+Zig cannot for some obscure reasons to me use the errors to export to a C ABI. Maybe something about the errors just isn't compatible with C, who knows. But this is fine with me. You normally shouldn't be introducing error-stricken code into your programs that often with WASM; WASM is a tiny little car engine with some memory, the only reasons it should really be failing are out-of-bounds errors, networking failure, or parsing issues. Past that, you should engineer your WASM code in a way that reduces errors to the smallest possible error vector imaginable. It will save you headaches later on in life.
 
 ### Defer
 
@@ -148,7 +190,7 @@ The `defer` keyword probably... shouldn't be used, if we're dealing with WASM ap
 If I'm designing a game world and it's goal is to live and run until the user closes out of the webpage/PWA, then it's not entirely necessary to free memory. Maybe if you had a more fleshed out game, then going to menu and starting/loading savefiles, yeah, maybe freeing memory is a fine thing to do. But other than that, these functions may share different scopes, and the `defer` keyword may not make sense when sharing memory across many different Zig functions.
 
 
-### Enumerations
+### Enumeration Safety
 
 Lastly a word about enumerations. If you do this:
 
@@ -210,6 +252,7 @@ do:
         movabs  rcx, offset .L__unnamed_1
         call    example.panic
 ```
+
 The `je` instruction jumps on equivalence, but if it doesn't, it'll hop to the next `jmp` instruction to then look at other cases. When all else fails, it proceeds to `.LBB0_1` which will yield a `call` to some panic function. If that panic function doesn't exist, then.... Undefined behavior in WASM maybe?
 
 Either way, consider this a bit of a footgun and don't write state machines without including an extra case to handle for invalid numerical inputs. That way you can include an `else` in the `switch` branch while still covering valid use cases.
@@ -227,7 +270,7 @@ pub fn doWithEntity(ent: Entity) u32 {
         .CellA => 0,
         .CellB => 1,
         .CellC => 2,
-        else => 99,
+        else => 99, // handles all non-valid values now
     };
 }
 ```

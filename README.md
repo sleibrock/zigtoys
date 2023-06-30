@@ -1,6 +1,15 @@
 Zigtoys - Demos with WASM
 ===
 
+# Update: Pause on Developments
+
+In a [recent issue submitted by the lead developer on Zig, Andrew Kelley](https://github.com/ziglang/zig/issues/16270), it seems that Zig will be parting ways with LLVM in the near (or far) future. WebAssembly is a tier 1 target, but I suspect that gutting LLVM from Zig will impact the ability of Zig to create stable WASM output for a while. The last version used in this project was `0.11`, so should you have continued interest in this project, please keep using `0.11`.
+
+I will be pausing active development on this repo for the time until a decision is made about the future of Zig and LLVM. As much as I would love to continue writing Zig, as I believe is an interesting and fun language, the fact that I have to consider and weigh long-term options like this make my continued interest in Zig more difficult. The repo will still be open until then for any and all PRs.
+
+---
+
+
 Zigtoys is a collection of "toy" applications I have written in Zig, targeting WebAssembly. It is a demonstration of what you can do with some very minimal Zig. The goal is to focus on design and creating composable code that is easy to re-use, with simplicity in mind.
 
 [dev.to](https://dev.to/) articles I have written using this repo:
